@@ -89,7 +89,7 @@ button { font-family: inherit; }
 #goalList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35em; }
 #goalList li { display: flex; gap: .55em; align-items: center; cursor: pointer; border-radius: .6em; padding: .2em .3em; line-height: 1.25; font-size: .95em; transition: background .15s; }
 #goalList li:hover { background: rgba(255, 255, 255, .08); }
-#goalList li .gi { flex: 0 0 2em; height: 2em; border-radius: .5em; background: rgba(255, 255, 255, .1); display: grid; place-items: center; overflow: hidden; }
+#goalList li .gi { flex: 0 0 2.8em; height: 2.8em; border-radius: .5em; background: rgba(255, 255, 255, .1); display: grid; place-items: center; overflow: hidden; }
 #goalList li .gi img, #goalList li .gi svg { width: 100%; height: 100%; object-fit: contain; }
 #goalList li.done { opacity: .5; text-decoration: line-through; }
 #goalList li.new { animation: goalIn 1.2s ease-out; }
@@ -115,6 +115,14 @@ button { font-family: inherit; }
 .slot.newItem { animation: newItem 1s ease-out; }
 @keyframes newItem { 0% { transform: scale(1.5); box-shadow: 0 0 1.5em #fff4b0; } 100% { transform: none; } }
 .slot.want { animation: want 1s ease-in-out infinite; border-color: #fff4b0; }
+.klar { position: absolute; right: -.5em; top: -1em; display: flex; align-items: center; gap: .25em; background: #2e7d5b; color: #fff; border: 2px solid #fff4d6; border-radius: 1em; padding: .05em .5em .05em .35em; font-weight: 700; font-size: .85em; box-shadow: 0 .2em .5em rgba(0, 0, 0, .35); animation: klarIn .3s ease-out; }
+.klar + .klar { right: 4.2em; }
+.klar img, .klar svg { width: 1.5em; height: 1.5em; border-radius: 50%; }
+@keyframes klarIn { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+.bigWait { width: 9em; height: 9em; border-radius: 50%; overflow: hidden; border: 5px solid var(--gold2); background: #fff4d6; box-shadow: 0 0 2em rgba(245, 213, 122, .6); animation: bigWait 1.2s ease-in-out infinite; }
+.bigWait img, .bigWait svg { width: 100%; height: 100%; object-fit: cover; }
+@keyframes bigWait { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+#bigBtn, #miniWait { flex-direction: column; gap: 1em; }
 @keyframes want { 0%, 100% { transform: none; box-shadow: 0 0 0 0 rgba(255, 244, 176, 0); } 50% { transform: translateY(-6px) scale(1.12); box-shadow: 0 0 1.2em .2em rgba(255, 244, 176, .8); } }
 .slot.tool { border-color: rgba(159, 216, 255, .7); background: radial-gradient(circle at 50% 35%, rgba(159, 216, 255, .28), rgba(255, 255, 255, .04)); }
 .thought { position: absolute; left: 0; top: 0; z-index: 12; width: 5.2em; height: 5.2em; border-radius: 50%; background: #fffaf0; border: 3px solid #bfb09a; padding: .6em; box-shadow: 0 .4em 1em rgba(0, 0, 0, .4); pointer-events: none; }
@@ -160,7 +168,7 @@ button { font-family: inherit; }
 @keyframes toastIn { from { transform: translate(-50%, -150%); } to { transform: translateX(-50%); } }
 .tIco { width: 2.6em; height: 2.6em; display: grid; place-items: center; }
 .tIco img, .tIco svg { width: 100%; height: 100%; object-fit: contain; }
-#chapterBadge { position: absolute; left: 50%; top: 18vh; transform: translateX(-50%); z-index: 14; text-align: center; color: #fff4d6; text-shadow: 0 2px 10px #000; animation: badge 4.2s ease-out forwards; pointer-events: none; }
+#chapterBadge { position: absolute; left: 50%; top: 5vh; transform: translateX(-50%); z-index: 14; text-align: center; color: #fff4d6; text-shadow: 0 2px 10px #000; animation: badge 4.2s ease-out forwards; pointer-events: none; }
 #chapterBadge small { display: block; font-family: var(--title2); letter-spacing: .3em; text-transform: uppercase; color: var(--gold2); }
 #chapterBadge b { font-family: var(--title); font-size: 2.6em; font-weight: 900; }
 @keyframes badge { 0% { opacity: 0; transform: translate(-50%, 1em); } 15%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
@@ -378,6 +386,7 @@ button { font-family: inherit; }
       <label class="row">Läs upp det musen pekar på <input type="checkbox" id="sReadHover"></label>
       <label class="row">Mysläge: Greven hittar aldrig någon <input type="checkbox" id="sMys"></label>
       <label class="row">Ledtrådar av sig själv <input type="checkbox" id="sAutoHints"></label>
+      <label class="row">Låt rösten prata klart (bra när två delar på en dator) <input type="checkbox" id="sVoiceFirst"></label>
       <label class="row">Grafik <select id="sQuality"><option value="auto">Automatisk</option><option value="high">Snyggast</option><option value="low">Snabbast</option></select></label>
       <label class="row">Oskärpa i bildens kanter <input type="checkbox" id="sDof"></label>
       <button class="big" id="sDone" type="button">Klar</button>
@@ -3136,7 +3145,7 @@ const Furniture = (() => {
     ['matsalen', 'm_matbord', .05, -1.0], ['matsalen', 'm_buffe', -.72, wall(.26)], ['matsalen', 'm_golvur', .9, wall(.15)], ['matsalen', 'm_ljuskrona', .05, -1.0, 0, 'ceil'],
     ['hallen', 'm_storatrappan', 0, 0], ['hallen', 'm_rustning', -.98, -1.3, 25], ['hallen', 'm_portar', -.75, BACK + .03], ['hallen', 'm_ljuskrona', .2, -.6, 0, 'ceil'],
     ['vardagsrum', 'm_tv', -.78, wall(.26), 8], ['vardagsrum', 'm_soffa', .05, BACK + .175], ['vardagsrum', 'm_spisen', .85, wall(.2)], ['vardagsrum', 'm_lampa', 0, -.7, 0, 'ceil'],
-    ['arbetsrum', 'm_skrivbord', -.45, wall(.32)], ['arbetsrum', 'm_verktyg', .55, -.75, 20], ['arbetsrum', 'm_parmar', .88, wall(.22)], ['arbetsrum', 'm_lampa', 0, -.7, 0, 'ceil'],
+    ['arbetsrum', 'm_skrivbord', -.45, wall(.32)], ['arbetsrum', 'm_parmar', .88, wall(.22)], ['arbetsrum', 'm_lampa', 0, -.7, 0, 'ceil'],
     ['tradgard', 'm_snogubbe', -.4, -.75, 15], ['tradgard', 'm_parabol', .5, -1.25, -25], ['tradgard', 'm_vedtrave', .05, -1.4], ['tradgard', 'm_gran', .95, -1.7, 0, 0, 1.1], ['tradgard', 'm_gran', -.85, -1.9, 40, 0, .8],
     ['stallet', 'm_hoskulle', -.62, -1.15], ['stallet', 'm_vattenho', .1, -.75], ['stallet', 'm_slade', .62, -1.05, -10], ['stallet', 'm_lykta', 0, -.8, 0, 1.5],
     ['barnkammare', 'm_vaningssang', -.62, wall(.4)], ['barnkammare', 'm_arbetsbank', .05, wall(.3)], ['barnkammare', 'm_datorbord', .8, wall(.3)], ['barnkammare', 'm_leksak', .42, -.8, -10], ['barnkammare', 'm_lampa', 0, -.7, 0, 'ceil'],
@@ -3144,7 +3153,7 @@ const Furniture = (() => {
     ['galleriet', 'm_portratt', 0, BACK + .02, 0, 1.0], ['galleriet', 'm_byst', .85, -1.2, -20], ['galleriet', 'm_ljuskrona', 0, -.6, 0, 'ceil'],
     ['bibliotek', 'm_bokhylla', -.35, wall(.22)], ['bibliotek', 'm_glob', .82, -1.25, 30], ['bibliotek', 'm_fatolj', .3, -1.15, -15], ['bibliotek', 'm_ljuskrona', 0, -.7, 0, 'ceil'],
     ['sovrum', 'm_garderob', -.72, wall(.3)], ['sovrum', 'm_sang', .2, BACK + .41], ['sovrum', 'm_byra', .9, wall(.22)], ['sovrum', 'm_lampa', 0, -.7, 0, 'ceil'],
-    ['vinkallare', 'm_flaskhylla', -.3, wall(.24)], ['vinkallare', 'm_tunnor', 1.05, -1.2], ['vinkallare', 'm_potatis', 1.75, -1.3, 10], ['vinkallare', 'm_lykta', -1.2, -.8, 0, 1.45], ['vinkallare', 'm_lykta', 1.3, -.8, 0, 1.45],
+    ['vinkallare', 'm_flaskhylla', -.3, wall(.24)], ['vinkallare', 'm_verktyg', -1.2, -1.32, 10], ['vinkallare', 'm_tunnor', 1.05, -1.2], ['vinkallare', 'm_potatis', 1.75, -1.3, 10], ['vinkallare', 'm_lykta', -1.2, -.8, 0, 1.45], ['vinkallare', 'm_lykta', 1.3, -.8, 0, 1.45],
     ['valvet', 'm_dansgolv', 0, -.85], ['valvet', 'm_nisch', -.8, BACK + .02, 0, .9], ['valvet', 'm_lada', .85, -1.2, -12], ['valvet', 'm_lykta', 0, -.9, 0, 1.45],
     ['fangelse', 'm_halm', -1.2, -1.15], ['fangelse', 'm_kedjor', .35, BACK + .02, 0, .95], ['fangelse', 'm_ratthal', 1.9, BACK + .02, 0, 0], ['fangelse', 'm_galler', -.4, BACK + .02, 0, 1.25], ['fangelse', 'm_lykta', .9, -.9, 0, 1.45],
     ['vinden', 'm_kista', -1.35, -1.15, 5], ['vinden', 'm_kladkorg', -.3, -1.2], ['vinden', 'm_gungstol', .75, -1.1, -20], ['vinden', 'm_tavlor', 1.6, -1.3, -10], ['vinden', 'm_lykta', 0, -.8, 0, 2.4],
@@ -4296,7 +4305,7 @@ const Input = (() => {
       const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
       const b = down.b; down = null;
       if (moved > 10) return;
-      if (b === 2) { if (Game.item) { Game.item = null; UI.itemCursor(null); } else if (D.talking()) D.next(); return; }
+      if (b === 2) { if (Game.item) { Game.item = null; UI.itemCursor(null); } else if (D.talking()) Game.advance(); return; }
       if (b !== 0) return;
       Sound.unlock && Sound.unlock();
       Game.click(I.pick(e.clientX, e.clientY));
@@ -4367,7 +4376,7 @@ const Input = (() => {
     }
     el.style.cursor = p.thing || p.actor ? 'pointer' : Game.mapMode() && p.room ? 'pointer' : '';
     // läser upp vad musen pekar på (för dem som inte läser själva)
-    if (key && !hoverSaid && Settings.readHover !== false && performance.now() - hoverSince > 650 && !D.talking()) {
+    if (key && !hoverSaid && Settings.readHover !== false && performance.now() - hoverSince > 650 && !D.talking() && !(window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending))) {
       hoverSaid = true;
       const name = p.thing ? Things.name(p.thing, Story.S()) : p.actor && CHARS[p.actor] ? CHARS[p.actor].name : '';
       if (name) Sound.speak(name, 'narrator');
@@ -4572,8 +4581,8 @@ const UI = (() => {
       ul.appendChild(li);
     });
     // ett nytt mål läses upp (för dem som inte läser själva)
-    const fresh = list.find(g => !g.done && prevKey && !old.includes(g.id));
-    if (fresh && Game.running()) readGoal(fresh.id);
+    const fresh = list.find(g => !g.done && !g.optional && !old.includes(g.id));
+    if (fresh && Game.running()) readGoal(fresh.id, prevKey ? 'Nytt mål: ' : 'Vårt uppdrag: ');
   };
   U.goalDone = id => { Sound.play('deliver'); U.tip('Klart!'); };
   U.chapterBadge = (n, title) => {
@@ -4643,8 +4652,40 @@ const UI = (() => {
   };
 
   /* ---------- Pratbubblan ---------- */
+  // Två datorer: repliker och kort går vidare när båda har klickat, eller när en har klickat och det mesta har hunnits
+  // läsas upp (80 %). Ensam gäller samma väntan om "Låt rösten prata klart" är på. est = ungefärlig uppläsningstid i ms.
+  U.gate = (est, fin) => {
+    const t0 = performance.now(), ready = {};
+    let timer = 0, over = false;
+    const coop = typeof Net !== 'undefined' && Net.role === 'host' && Net.connected && Net.connected();
+    const end = () => { if (over) return; over = true; clearTimeout(timer); fin(); };
+    return {
+      hit(from = 'host', force) {
+        if (over) return;
+        if (force) return end();
+        const el = performance.now() - t0;
+        if (el < 250 * Time.scale) return;
+        if (!coop && !Settings.voiceFirst) return end();
+        ready[from] = true;
+        if (coop) D.call('klar', from === 'host' ? Game.me() : Game.other());
+        if (coop && ready.host && ready.guest) return end();
+        const left = est * .8 - el;
+        if (left <= 0) return end();
+        clearTimeout(timer); timer = setTimeout(end, left);
+      },
+      stop() { over = true; clearTimeout(timer); }
+    };
+  };
+  // en liten bock med ansiktet: den här spelaren är klar och väntar på den andra
+  U.klar = who => {
+    if (!CHARS[who]) return;
+    const card = $('card'), host = card && !card.hidden ? card.querySelector('.page') : $('bubble');
+    if (!host || host.hidden || host.querySelector('.klar[data-who="' + who + '"]')) return;
+    host.appendChild(h('span', {class: 'klar', dataset: {who}, html: '\u2713 ' + Icons.faceHTML(who)}));
+  };
   U.bubble = (who, text, actor) => {
     const b = $('bubble');
+    b.querySelectorAll('.klar').forEach(k => k.remove());
     if (!who) { b.hidden = true; bubbleActor = null; return; }
     const def = CHARS[who] || CHARS.narrator;
     $('bubbleName').textContent = def.name || '';
@@ -4680,7 +4721,7 @@ const UI = (() => {
   let want = null;
   // läser upp ett nytt mål när det har blivit tyst: ingen pratar, inget kort och ingen filmscen (väntar högst 25 sekunder)
   let goalQ = null;
-  function readGoal(id) {
+  function readGoal(id, pre = 'Nytt mål: ') {
     goalQ = id;
     let n = 0;
     const tick = () => {
@@ -4689,7 +4730,7 @@ const UI = (() => {
       if (!quiet) { if (++n < 50) setTimeout(tick, 500); return; }
       goalQ = null;
       const g = Story.visibleGoals().find(x => x.id === id && !x.done);
-      if (g) { Sound.speak('Nytt mål: ' + g.text.replace(/ \(.*\)$/, ''), 'narrator'); }
+      if (g) { Sound.speak(pre + g.text.replace(/ \(.*\)$/, ''), 'narrator'); }
     };
     setTimeout(tick, 900);
   }
@@ -4698,14 +4739,25 @@ const UI = (() => {
     document.querySelectorAll('#bag .slot').forEach(s => s.classList.toggle('want', !!on && s.dataset.item === want.item && Game.item !== want.item));
   }
   let thoughtActor = null;
-  function placeThought() { const t = $('thought'); if (!t || t.hidden || !thoughtActor) return; const p = S3.project(thoughtActor.headPos()); t.style.transform = `translate(${p.x + 20}px, ${p.y - 110}px)`; }
+  function placeThought() {
+    const t = $('thought'); if (!t || t.hidden || !thoughtActor) return;
+    // pratar figuren samtidigt hamnar tankebubblan bredvid pratbubblan (inte över texten)
+    const b = $('bubble');
+    if (b && !b.hidden) {
+      const r = b.getBoundingClientRect(), tw = t.offsetWidth || 90;
+      const x = r.right + 14 + tw < innerWidth ? r.right + 14 : Math.max(8, r.left - tw - 14);
+      t.style.transform = `translate(${x}px, ${Math.max(8, r.top - 12)}px)`;
+      return;
+    }
+    const p = S3.project(thoughtActor.headPos()); t.style.transform = `translate(${p.x + 20}px, ${p.y - 110}px)`;
+  }
   U.volt = k => {
     let v = $('volt');
     if (!v) { v = h('div', {id: 'volt', class: 'volt', html: '<svg viewBox="0 0 60 40"><path d="M6 34 A26 26 0 0 1 54 34" fill="none" stroke="#3a2d10" stroke-width="5"/><path d="M6 34 A26 26 0 0 1 54 34" fill="none" stroke="#9fe8a0" stroke-width="3" stroke-dasharray="4 3"/><line id="voltNeedle" x1="30" y1="34" x2="30" y2="10" stroke="#c7324a" stroke-width="3" stroke-linecap="round"/><circle cx="30" cy="34" r="4" fill="#3a2d10"/></svg>'}); $('hud').appendChild(v); }
     v.classList.toggle('on', k > 0.02);
     const n = $('voltNeedle'); if (n) n.setAttribute('transform', `rotate(${-70 + clamp(k, 0, 1) * 140} 30 34)`);
   };
-  U.tip = text => { const t = $('tipLine'); t.textContent = text; t.style.opacity = 1; tipT = 4; };
+  U.tip = (text, opts) => { const t = $('tipLine'); t.textContent = text; t.style.opacity = 1; tipT = 4; if (opts && opts.say) Sound.speak(text, 'narrator'); };
   U.toast = (text, icon) => {
     const t = $('toast');
     $('toastText').textContent = text; $('toastIco').innerHTML = icon || Art.item('stjarna');
@@ -4713,20 +4765,26 @@ const UI = (() => {
     clearTimeout(U.toastT); U.toastT = setTimeout(() => { t.hidden = true; }, 2600);
   };
   U.marker = pos => { const p = S3.project(pos); const m = h('div', {class: 'walkMark'}); m.style.left = p.x + 'px'; m.style.top = p.y + 'px'; Fx.layer().appendChild(m); setTimeout(() => m.remove(), 700); };
-  U.letterbox = on => { $('letterbox').classList.toggle('on', on); $('hud').style.opacity = on ? .25 : 1; };
+  U.letterbox = on => { $('letterbox').classList.toggle('on', on); $('hud').style.opacity = on ? .25 : 1; $('goals').style.visibility = on ? 'hidden' : ''; };
   U.fade = (on, ms = 700) => new Promise(res => { const f = $('fade'); f.style.transitionDuration = ms * Time.scale + 'ms'; f.classList.toggle('on', on); setTimeout(res, ms * Time.scale + 30); });
   U.mapMode = on => { $('mapHint').hidden = !on; $('goals').style.opacity = on ? .3 : 1; };
 
   /* ---------- Kort (berättelsen mellan kapitlen) och val ---------- */
-  let cardDone = null;
+  let cardDone = null, cardHit = null;
+  U.cardHit = from => { if (cardHit) cardHit(from); };
   U.card = (title, text, {kicker = '', art = [], auto = 0, img = null} = {}) => new Promise(res => {
     $('cardKicker').textContent = kicker; $('cardTitle').textContent = title; $('cardText').textContent = text;
     $('cardArt').innerHTML = (img ? `<img class="cardImg" src="${img}" alt="">` : '') + art.map(w => CHARS[w] ? Icons.faceHTML(w, 'full') : Icons.itemHTML(w)).join('');
+    $('card').querySelectorAll('.klar').forEach(k => k.remove());
     $('card').hidden = false;
-    Sound.speak((kicker ? kicker + '. ' : '') + title + '. ' + text, 'narrator');
-    const t0 = performance.now();
-    cardDone = (force) => { if (!force && performance.now() - t0 < 400 * Time.scale) return; if (Net.role === 'guest' && !force) { Net.next(); return; } cardDone = null; $('card').hidden = true; Sound.stopSpeech(); if (Net.role === 'host') Net.cardClose(); res(); };
-    if (auto || Time.scale < .2) setTimeout(() => cardDone && cardDone(), Math.max(450, auto) * Time.scale);
+    const said = (kicker ? kicker + '. ' : '') + title + '. ' + text;
+    Sound.speak(said, 'narrator');
+    let closed = false;
+    const close = () => { if (closed) return; closed = true; gate.stop(); cardDone = null; cardHit = null; $('card').hidden = true; Sound.stopSpeech(); if (Net.role === 'host') Net.cardClose(); res(); };
+    const gate = U.gate((700 + said.length * 62) * Time.scale, close);
+    cardHit = from => gate.hit(from);
+    cardDone = force => { if (force) return close(); if (Net.role === 'guest') { U.klar(Game.me()); Net.next(); return; } gate.hit('host'); };
+    if (auto || Time.scale < .2) setTimeout(close, Math.max(450, auto) * Time.scale);
     setTimeout(() => $('cardGo').focus(), 50);
   });
   let chooseDone = null;
@@ -4746,16 +4804,24 @@ const UI = (() => {
   // En stor knapp som barnet själv trycker på i de viktiga ögonblicken
   let bigRes = null;
   U.bigClose = (click) => { const o = $('bigBtn'); if (!o || o.hidden) return; o.hidden = true; if (bigRes) { const r = bigRes; bigRes = null; r(); } };
-  U.bigButton = (label, sub, remote) => new Promise(res => {
-    if (Net.role === 'host' && !remote) Net.big(label, sub);
+  // Den stora knappen. owner = barnet som trycker (på två datorer): den andra datorn visar vems tur det är.
+  U.bigButton = (label, sub, remote, owner) => new Promise(res => {
+    if (Net.role === 'host' && !remote) Net.big(label, sub, owner);
     let o = $('bigBtn');
     if (!o) { o = h('div', {id: 'bigBtn', class: 'overlay'}); $('app').appendChild(o); }
     o.innerHTML = '';
+    if (owner && CHARS[owner] && Net.role !== 'solo' && Net.connected && Net.connected() && owner !== Game.me()) {
+      o.append(h('div', {class: 'bigWait', html: Icons.faceHTML(owner, 'full')}), h('p', {class: 'bigSub', text: `Nu trycker ${CHARS[owner].name}!`}));
+      o.hidden = false;
+      Sound.speak(`Nu trycker ${CHARS[owner].name}!`, 'narrator');
+      bigRes = () => { if (Net.role === 'host') Net.bigDone(); res(); };
+      return;
+    }
     const b = h('button', {class: 'bigRound', type: 'button'}, h('span', null, label));
     o.append(b, sub ? h('p', {class: 'bigSub', text: sub}) : '');
     o.hidden = false;
     Sound.speak(label + '! ' + (sub || ''), 'narrator');
-    const done = () => { if (o.hidden) return; Sound.play('pop'); window.removeEventListener('keydown', key); if (remote) { Net.next(); o.hidden = true; return; } o.hidden = true; bigRes = null; if (Net.role === 'host') Net.bigDone(); res(); };
+    const done = () => { if (o.hidden) return; Sound.play('pop'); window.removeEventListener('keydown', key); if (remote) { Net.bigPress(); o.hidden = true; return; } o.hidden = true; bigRes = null; if (Net.role === 'host') Net.bigDone(); res(); };
     bigRes = () => { window.removeEventListener('keydown', key); if (Net.role === 'host') Net.bigDone(); res(); };
     const key = e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); done(); } };
     b.onclick = done;
@@ -4763,6 +4829,16 @@ const UI = (() => {
     if (Time.scale < .2) setTimeout(done, 300);
     setTimeout(() => b.focus(), 50);
   });
+  // Minispelet är klart här men inte hos den andra: "Bra! Vi väntar på Lillan …" (who = null tar bort rutan)
+  U.waiting = who => {
+    let w = $('miniWait');
+    if (!who) { if (w) w.hidden = true; return; }
+    if (!w) { w = h('div', {id: 'miniWait', class: 'overlay'}); $('app').appendChild(w); }
+    w.innerHTML = '';
+    w.append(h('div', {class: 'bigWait', html: Icons.faceHTML(who, 'full')}), h('p', {class: 'bigSub', text: `Bra jobbat! Vi väntar på ${CHARS[who].name} …`}));
+    w.hidden = false;
+    Sound.speak(`Bra jobbat! Vi väntar på ${CHARS[who].name}.`, 'narrator');
+  };
   return U;
 })();
 
@@ -4849,6 +4925,7 @@ const Menus = (() => {
     $('sReadHover').checked = Settings.readHover !== false; $('sReadHover').onchange = e => { Settings.readHover = e.target.checked; };
     $('sMys').checked = !!Settings.mys; $('sMys').onchange = e => { Settings.mys = e.target.checked; };
     $('sAutoHints').checked = Settings.autoHints !== false; $('sAutoHints').onchange = e => { Settings.autoHints = e.target.checked; };
+    $('sVoiceFirst').checked = !!Settings.voiceFirst; $('sVoiceFirst').onchange = e => { Settings.voiceFirst = e.target.checked; };
     $('sQuality').onchange = e => { Settings.quality = e.target.value; };
     $('sDof').onchange = e => { Settings.dof = e.target.checked; };
   };
@@ -5073,17 +5150,21 @@ const D = (() => {
   const actor = who => (who && who !== 'narrator' && CHARS[who] ? Actors.get(who) : null);
   // Prat: pratbubbla över figuren (eller berättarrutan) och uppläsning. Klick eller mellanslag går vidare.
   R.say = wrap('say', (who, text, opts = {}) => new Promise(res => {
-    const a = actor(who), vis = a && a.visible;
+    const a = actor(who), vis = a && a.visible, id = {};
     UI.bubble(who, text, vis ? a : null);
-    if (vis) a.talking = true;
-    const t0 = performance.now();
+    if (vis) { a.talking = true; a.talkId = id; }
     let done = false;
-    const fin = () => { if (done) return; done = true; if (vis) a.talking = false; UI.bubble(null); if (next === adv) next = null; res(); };
-    const adv = () => { if (performance.now() - t0 > 250 * Time.scale) { Sound.stopSpeech(); fin(); } };
+    const quiet = () => { if (vis && a.talkId === id) a.talking = false; };
+    // en ny replik kan redan ha tagit över bubblan (t.ex. på gästens dator): då rör vi den inte
+    const fin = () => { if (done) return; done = true; gate.stop(); quiet(); if (next === adv) { next = null; UI.bubble(null); if (typeof Net !== 'undefined' && Net.role === 'host') Net.d('sayEnd', []); } res(); };
+    const gate = UI.gate((700 + String(text).length * 62) * Time.scale, () => { Sound.stopSpeech(); fin(); });
+    const adv = (from, force) => gate.hit(from, force);
     next = adv;
-    Sound.sayP(text, CHARS[who] ? who : 'narrator').then(() => { if (vis) a.talking = false; setTimeout(fin, (opts.hold ?? 450) * Time.scale); });
+    Sound.sayP(text, CHARS[who] ? who : 'narrator').then(() => { quiet(); setTimeout(fin, (opts.hold ?? 450) * Time.scale); });
   }));
-  R.next = () => { if (next) next(); };
+  R.next = (from = 'host') => { if (next) next(from); };
+  // värdens replik är slut: gästen tar också bort sin (gästen klickar inte bort repliker själv)
+  R.sayEnd = () => { if (next) next('host', true); };
   // Tankebubbla: figuren tänker på en sak (bild) och säger en kort mening
   R.think = wrap('think', (who, item, text) => { UI.thought(who, item); return text ? R.say(who, text).then(() => UI.thought(null)) : R.wait(1600).then(() => UI.thought(null)); });
   // Glittrande fotspår från figuren fram till en sak (ledtrådens sista steg)
@@ -5121,6 +5202,7 @@ const D = (() => {
   // Egna effekter: kapitlen registrerar funktioner (D.reg) som körs på båda datorerna (D.call)
   const regs = {};
   R.reg = (name, fn) => { regs[name] = fn; };
+  R.reg('klar', who => UI.klar(who));
   R.call = wrap('call', (name, ...a) => { try { return regs[name] ? regs[name](...a) : undefined; } catch (e) { console.error(e); } });
   R.dark = wrap('dark', (room, level) => Dark.set(room, level));
   R.script = wrap('script', (who, on) => { Actors.get(who).scripted = on; });
@@ -5153,7 +5235,15 @@ const D = (() => {
   R.lamp = wrap('lamp', (who, on) => Actors.get(who).lamp(on));
   R.hold = wrap('hold', (who, model) => Actors.get(who).hold(model));
   // En tidsbegränsad sak (spelas bara hos värden, gästen får tillståndet)
-  R.mini = async (name, opts) => { if (typeof Net !== 'undefined') Net.mini(name, opts); const r = await Mini.run(name, opts); if (typeof Net !== 'undefined') Net.miniEnd(); return r; };
+  // Minispelet spelas på båda datorerna. Den som blir klar först väntar på den andra (efter 30 sekunder får den hjälp).
+  R.mini = async (name, opts) => {
+    const co = typeof Net !== 'undefined' && Net.role === 'host' && Net.connected();
+    if (typeof Net !== 'undefined') Net.mini(name, opts);
+    const r = await Mini.run(name, opts);
+    if (co && !Net.guestMiniDone()) { UI.waiting(Game.other()); await Net.waitGuestMini(); UI.waiting(null); }
+    if (typeof Net !== 'undefined') Net.miniEnd();
+    return r;
+  };
   R.choose = (who, title, options) => typeof Net !== 'undefined' ? Net.choose(who, title, options) : UI.choose(title, options);
   R.badge = wrap('badge', (n, title) => UI.chapterBadge(n, title));
   R.reset = () => { next = null; cut = 0; UI.letterbox(false); Game.setCut(false); };
@@ -5243,7 +5333,7 @@ const Game = (() => {
   /* ---------- Klick och tangenter ---------- */
   G.click = async hit => {
     if (!running) return;
-    if (D.talking()) { D.next(); if (typeof Net !== 'undefined' && Net.role === 'guest') Net.next(); return; }
+    if (D.talking()) { G.advance(); return; }
     if (cut || busy[me]) return;
     if (mapMode) { if (hit.room) { G.map(false); G.jump(hit.room); } return; }
     if (hit.thing) return G.interact(hit.thing, G.item);
@@ -5255,6 +5345,7 @@ const Game = (() => {
       return G.walkTo(hit.room, hit.point.x, hit.point.z);
     }
   };
+  G.advance = () => { if (role === 'guest') { UI.klar(me); Net.next(); } else D.next('host'); };
   G.walkTo = async (room, x, z) => {
     if (mapMode) G.map(false);
     const a = Actors.get(me);
@@ -5354,7 +5445,7 @@ const Game = (() => {
     if (near.length) { exitCool = 1.2; G.useExit(near); }
   };
   G.useNearest = () => {
-    if (D.talking()) { D.next(); return; }
+    if (D.talking()) { G.advance(); return; }
     if (!running || cut || busy[me]) return;
     const a = Actors.get(me);
     let best = null, bd = .55;
@@ -5437,6 +5528,8 @@ const Game = (() => {
     }
   };
   let lastAuto = performance.now(), showGoal = null, goalT = null, goalSince = 0, goalCheck = 0;
+  // guldpilen visas direkt på nästa steg (t.ex. första målet i spelet)
+  G.pointGoal = () => { const t = Story.goalTarget(); if (t) { showGoal = t; goalT = t; Things.goal(t); } };
   // Q: kalla på syskonet (ensam följer det med igen, tillsammans får den andra en pil)
   G.callOther = () => {
     if (!running || cut) return;
@@ -5744,7 +5837,7 @@ Content.add(() => {
       {id: 'nycklar', text: 'Hitta pappas nyckelknippa', icon: 'nycklar', show: S => S.flags.hanglas && !S.goals.sakring, target: S => S.flags.nysning ? 'nyckelknippa' : 'nyckelbrada',
         hints: S => S.flags.nysning ? ['Någon nös i matsalen! Titta högt upp.', 'Något blänker i ljuskronan i matsalen.', 'Nyckelknippan hänger i ljuskronan. Ivar kan slå ner den med svärdet.'] : ['Pappa brukar hänga nycklarna på nyckelbrädan i köket.', 'Nyckelbrädan sitter på väggen i köket.', 'Klicka på nyckelbrädan i köket.']},
       {id: 'sakring', text: 'Hämta en ny säkring ur pappas verktygslåda', icon: 'sakring', show: S => S.goals.propp, target: 'verktygslada',
-        hints: ['Pappa har säkringar i sin verktygslåda.', 'Verktygslådan står i pappas arbetsrum.', 'Öppna verktygslådan i arbetsrummet.']},
+        hints: ['Pappa har säkringar i sin verktygslåda.', 'Verktygslådan står i vinkällaren, bredvid proppskåpet.', 'Öppna verktygslådan i vinkällaren.']},
       {id: 'strom', text: 'Sätt i säkringen och dra i spaken', icon: 'sakring', show: S => S.goals.sakring, target: 'proppskap',
         hints: ['Nu har vi säkringen. Tillbaka till proppskåpet!', 'Använd säkringen på proppskåpet i vinkällaren.', 'Sätt i säkringen och låt Ivar dra i den tunga spaken.']},
       {id: 'vinden', text: 'Ta reda på vad som låter på vinden', icon: 'ritning', show: S => S.goals.strom, target: S => S.flags.spindelvav ? 'vindkista' : 'spindelvav',
@@ -5796,12 +5889,10 @@ Content.add(() => {
       await D.card('Mysteriet på Greveholm', 'Familjen Olsson ska fira jul i ett riktigt slott. De har hyrt Greveholm av två herrar som heter Rolf och Ralf. Det snöar, och det har just blivit kväll …', {kicker: 'Kapitel 1', art: ['ivar', 'lillan']});
       await D.say('rolf', 'Välkomna till Greveholm! Här är nycklarna.');
       await D.say('ralf', 'Hyran betalas kontant. Nej, vi behöver inget kvitto!');
-      await D.say('leif', 'Tack så mycket. Vilket fantastiskt slott!');
-      await D.say('rolf', 'Jaja. Nu har vi väldigt bråttom. Hej då!');
+      await D.say('rolf', 'Nu har vi väldigt bråttom. Hej då!');
       D.walk('rolf', 'hallen', -.75, -1.45); await D.walk('ralf', 'hallen', -.7, -1.45);
       D.sfx('slam'); D.hide('rolf'); D.hide('ralf');
-      await D.say('astrid', 'Vad stort det är! Och så kallt.');
-      await D.say('melitta', 'Och läskigt. Det spökar här, jag lovar!');
+      await D.say('melitta', 'Vad läskigt det är här. Det spökar, jag lovar!');
       await D.say('leif', 'Spöken finns inte, Melitta. Allt har en naturlig förklaring.');
       D.sfx('thunder'); D.call('flash', 1.2); D.shake(.06);
       Story.set('morkt'); Story.changed(true);
@@ -5817,7 +5908,8 @@ Content.add(() => {
       ['leif', 'astrid', 'melitta', 'rolf', 'ralf'].forEach(w => D.script(w, false));
       D.camBack(); D.cut(false);
       Story.changed(true);
-      UI.tip('Klicka på golvet för att gå och på saker för att använda dem.');
+      UI.tip('Klicka på golvet för att gå och på saker för att använda dem.', {say: true});
+      Game.pointGoal();
     },
     resume: async S => { await D.say(Game.me(), 'Förra gången på Greveholm gick strömmen. Nu fortsätter vi!'); }
   });
@@ -5900,7 +5992,7 @@ Content.add(() => {
     D.sfx('fizz');
     await D.say(who, 'Bip bip … den tredje säkringen är trasig! Den har brunnit.');
     Story.set('propp_mat'); Story.done('propp');
-    await D.say('ivar', 'Vi behöver en ny. Pappa har säkringar i sin verktygslåda!');
+    await D.say('ivar', 'Vi behöver en ny säkring. Pappas verktygslåda står ju här!');
   }
   async function insert({who}) {
     await D.anim(who, 'reach'); D.sfx('click2');
@@ -5909,6 +6001,7 @@ Content.add(() => {
   }
   async function lever({who}) {
     D.cut(true);
+    await UI.bigButton('Dra i spaken!', 'Nu ska ljuset tändas!', false, 'ivar');
     await D.anim(who, 'push', 1300);
     D.call('ch1spak');
     D.sfx('klonk');
@@ -5918,8 +6011,11 @@ Content.add(() => {
     Story.set('power'); Story.done('strom'); Story.changed(true);
     D.mood('slott');
     await D.wait(600);
-    D.sfx('ghost');
-    await D.say('narrator', 'I vardagsrummet startar tv:n av sig själv. Och någon suckar: Ooohhh …');
+    // tv:n i vardagsrummet startar av sig själv, och ett spöke syns på skärmen
+    await D.cam('vardagsrum', 2.8, 900);
+    D.call('tvSpoke', true); D.sfx('ghost');
+    await D.say('narrator', 'Titta! Tv:n i vardagsrummet startar av sig själv. Någon suckar: Ooohhh …');
+    D.call('tvSpoke', false);
     D.camBack();
     await D.wait(500);
     D.anim('ivar', 'cheer'); D.anim('lillan', 'cheer');
@@ -5932,7 +6028,7 @@ Content.add(() => {
   }
 
   /* ---------- Pappas verktygslåda med hänglås ---------- */
-  Things.def('verktygslada', {room: 'arbetsrum', furniture: 'm_verktyg', name: S => S.flags.verktyg_open ? 'Pappas verktygslåda' : 'Pappas verktygslåda (låst)',
+  Things.def('verktygslada', {room: 'vinkallare', furniture: 'm_verktyg', name: S => S.flags.verktyg_open ? 'Pappas verktygslåda' : 'Pappas verktygslåda (låst)',
     onSpawn: (L, S) => { if (S.flags.verktyg_open || !L.obj) return; const l = new THREE.Mesh(new THREE.BoxGeometry(.045, .05, .02), new THREE.MeshStandardMaterial({color: 0xc9a04a, metalness: 1, roughness: .3})); const b = new THREE.Box3().setFromObject(L.obj), c = b.getCenter(new THREE.Vector3()); L.obj.worldToLocal(c.set(c.x, b.min.y + (b.max.y - b.min.y) * .55, b.max.z + .012)); l.position.copy(c); l.name = 'hanglas'; L.obj.add(l); L.obj.userData.nodes = Object.assign(L.obj.userData.nodes || {}, {hanglas: l}); },
     sparkle: S => S.goals.propp && !S.goals.sakring,
     use: async ({who}) => {
@@ -6062,6 +6158,7 @@ Content.add(() => {
   D.reg('flash', k => S3.flash(k));
   D.reg('ch1spak', () => { const L = Things.get('proppskap'), lv = L && L.obj.userData.nodes && L.obj.userData.nodes.spak; if (lv) { const r0 = lv.rotation.x; Anim.tween(350, t => { lv.rotation.x = r0 + easeIn(t) * 2.6; }); } });
   D.reg('proppDorr', () => { const L = Things.get('proppskap'), d = L && L.obj.userData.nodes && L.obj.userData.nodes['dörr']; if (d && !d.userData.open) { d.userData.open = 1; const r0 = d.rotation.y; Anim.tween(600, t => { d.rotation.y = r0 - easeOut(t) * 1.9; }); } });
+  D.reg('tvSpoke', on => { if (Furniture.tvFace) Furniture.tvFace(on ? Icons.face('staffan', 'head') : null); });
   D.reg('ch1lada', () => { const L = Things.get('verktygslada'), n = L && L.obj.userData.nodes; if (n && n.hanglas) n.hanglas.visible = false; if (n && n.lock) Anim.tween(500, t => { n.lock.rotation.x = -t * 1.6; }); });
   D.reg('ch1nycklar', () => { const L = Things.get('nyckelknippa'), o = L && L.obj, y0 = o ? o.position.y : 1; return o ? Anim.tween(420, t => { o.position.y = lerp(y0, .02, t * t); o.rotation.x = t * 1.4; }) : null; });
   D.reg('ch1kista', () => { const lid = Furniture.node('vinden', 'm_kista', 'lock'); if (lid) Anim.tween(700, t => { lid.rotation.x = -t * 1.2; }); });
@@ -6124,7 +6221,7 @@ Content.add(() => {
       const S = S0();
       if (!S.goals.ficklampa) return D.say('leif', 'Ficklampan ligger i en flyttlåda. Titta i dem!');
       if (!S.goals.propp) return D.say('leif', 'Proppskåpet sitter i vinkällaren. Trappan ner går från tornet vid köket.');
-      if (!S.goals.sakring) return D.say('leif', 'Säkringar finns i min verktygslåda i arbetsrummet. Nycklarna hänger i köket.');
+      if (!S.goals.sakring) return D.say('leif', 'Säkringar finns i min verktygslåda i vinkällaren. Nycklarna hänger i köket.');
       if (!S.goals.strom) return D.say('leif', 'Sätt i säkringen och dra i spaken. Det är bara teknik!');
       return D.say('leif', pick(['Spöken? Det är säkert bara dålig isolering.', 'Jag håller på med en uppfinning. En automatisk pepparkaksbak!', 'Allt har en naturlig förklaring.']));
     }});
@@ -6211,7 +6308,7 @@ Content.add(() => {
     if (!S.flags.fick_sprak_hals) return Story.has('urnyckel') ? 'golvur' : 'speldosa';
     if (!S.flags.fick_sprak_arm_v) return 'rustning';
     if (!S.flags.fick_sprak_huvud) return S.flags.eldslackt ? 'spis' : Story.has('hink_vatten') ? 'spis' : Story.has('hink') ? 'vattenho' : 'hink_stall';
-    if (!S.flags.fick_sprak_kropp) return S.flags.stegeUppe ? 'hoskulle' : Story.has('stege') ? 'hoskulle' : 'stege';
+    if (!S.flags.fick_sprak_kropp) return 'hoskulle';
     if (!S.flags.fick_sprak_arm_h) return Story.has('ost') ? 'ratthal' : S.flags.sagRattan ? 'kylskap' : 'ratthal';
     return 'arbetsbank';
   }
@@ -6224,8 +6321,7 @@ Content.add(() => {
       hink_stall: ['Något glittrar uppe i skorstenen i vardagsrummet, men det brinner.', 'Vi behöver vatten. En hink finns i stallet.', 'Ta hinken i stallet.'],
       vattenho: ['Hinken behöver vatten.', 'Vattenhon står i stallet.', 'Använd hinken på vattenhon.'],
       spis: ['Släck brasan med vattnet!', 'Brasan är i vardagsrummet.', 'Använd hinken med vatten på öppna spisen.'],
-      stege: ['Höskullen i stallet är för högt upp.', 'En stege står ute i trädgården.', 'Ivar kan bära stegen från trädgården.'],
-      hoskulle: ['Nu kan vi klättra upp i höskullen!', 'Höskullen är i stallet.', 'Klicka på höskullen i stallet.'],
+      hoskulle: ['Något är gömt högt upp i stallet.', 'Titta i höskullen i stallet. Stegen står redan där.', 'Klicka på höskullen i stallet.'],
       ratthal: ['Något piper i fängelsehålan.', 'Råttan i råtthålet vill ha något gott.', 'Råttor älskar ost. Ost finns i kylskåpet.'],
       kylskap: ['Råttan vill ha ost.', 'Ost finns i kylskåpet i köket.', 'Klicka på kylskåpet i köket.'],
       arbetsbank: ['Alla delar är hittade!', 'Arbetsbänken står i barnkammaren.', 'Klicka på arbetsbänken.']
@@ -6260,20 +6356,14 @@ Content.add(() => {
     if (n === 5) Story.done('delar');
   };
 
-  /* ---------- Delen i höskullen (stallet) med stegen från trädgården ---------- */
-  Things.def('stege', {room: 'tradgard', x: .78, z: -1.05, rot: -15, rz: .25, make: () => Props.make('stege'), name: 'En stege', when: S => !Story.has('stege') && !S.flags.stegeUppe,
-    need: 'ivar', needText: 'Den är för tung för mig. Ivar, du är stark!',
-    use: async ({who}) => { await D.anim(who, 'push'); D.sfx('pickup'); Story.gone('stege'); Story.give('stege', 'stege'); await D.say(who, 'Uff! Stegen tar vi med till stallet.'); }});
-  Things.def('hoskulle', {room: 'stallet', furniture: 'm_hoskulle', name: 'Höskullen', at: {x: -.35, z: -.72}, auto: S => !S.flags.stegeUppe && 'stege',
-    sparkle: S => !S.flags.fick_sprak_kropp && (Story.has('stege') || S.flags.stegeUppe),
+  /* ---------- Delen i höskullen (stallet): man klättrar upp för stegen som står där ---------- */
+  Things.def('hoskulle', {room: 'stallet', furniture: 'm_hoskulle', name: 'Höskullen', at: {x: -.35, z: -.72},
     use: async ({who, other}) => {
       const S = S0();
       if (S.flags.fick_sprak_kropp) return D.say(who, pick(['Bara hö kvar. Atjo!', 'Höet kliar.']));
-      if (!S.flags.stegeUppe) return D.think(who, 'stege', 'Höskullen är för högt upp. Vi behöver en stege.');
+      if (Story.has('stege')) Story.take('stege');
       return searchHay(who, other);
-    },
-    items: {stege: async ({who}) => { await D.anim(who, 'push'); Story.take('stege'); Story.set('stegeUppe'); D.sfx('thud'); await D.say(who, 'Så! Nu står stegen mot höskullen.'); }}});
-  Things.def('stege_uppe', {room: 'stallet', x: -.45, z: -.88, rot: 10, rx: -.28, make: () => Props.make('stege'), name: 'Stegen', noClick: true, when: S => !!S.flags.stegeUppe});
+    }});
   async function searchHay(who, other) {
     D.cut(true);
     await D.say(other, 'Jag håller i stegen!');
@@ -6552,7 +6642,7 @@ Content.add(() => {
     D.place('ivar', 'barnkammare', -.3, -.6, .8); D.place('lillan', 'barnkammare', -.6, -.55, .8);
     await D.say('lillan', 'Nu! Starta spökfångaren på datorn!');
     // barnet trycker själv på knappen
-    await UI.bigButton('Starta SPÖKFÅNGAREN', 'Klicka på knappen!');
+    await UI.bigButton('Starta SPÖKFÅNGAREN', 'Klicka på knappen!', false, 'lillan');
     D.call('sug'); D.sfx('sprak'); D.shake(.05);
     await D.wait(1600);
     D.hide('jean'); D.hide('staffan');
@@ -6605,7 +6695,7 @@ Content.add(() => {
   Things.def('npc_melitta2', {room: S => S.chapter === 2 && !S.flags.natt2 ? 'musiksalong' : null, actor: 'melitta', name: 'Melitta',
     use: async () => D.say('melitta', pick(['Speldosan spelar en så fin gammal melodi.', 'Måns är faktiskt ganska söt. Säg inget!', 'Rustningen i hallen gnisslar när man går förbi.']))});
   Things.def('npc_mans2', {room: S => S.chapter === 2 && !S.flags.natt2 ? 'tradgard' : null, actor: 'mans', name: 'Måns',
-    use: async () => { const S = S0(); if (!S.flags.fick_sprak_kropp && !Story.has('stege') && !S.flags.stegeUppe) return D.say('mans', 'Det står en stege vid vedtraven. Bra om man ska upp högt!'); return D.say('mans', pick(['Säg till om ni ser ett spöke. Jag vill ta ett kort!', 'Är Melitta hemma? Jag bara undrar.', 'Holmnäs Allehanda har aldrig haft ett riktigt spökfoto!'])); }});
+    use: async () => { const S = S0(); if (!S.flags.fick_sprak_kropp) return D.say('mans', 'Jag hörde något skramla uppe i höskullen i stallet. Något hårt, av metall!'); return D.say('mans', pick(['Säg till om ni ser ett spöke. Jag vill ta ett kort!', 'Är Melitta hemma? Jag bara undrar.', 'Holmnäs Allehanda har aldrig haft ett riktigt spökfoto!'])); }});
 });
 
 /* ---- 10c3-kap3.js ---- */
@@ -6660,7 +6750,7 @@ Content.add(() => {
       D.anim('ivar', 'cheer');
       await D.say('ivar', 'Mormor! Tack!');
       await D.say('mormor', 'Tårta först, spöken sedan.');
-      await UI.bigButton('Blås ut ljusen!', 'Ivar fyller år!');
+      await UI.bigButton('Blås ut ljusen!', 'Ivar fyller år!', false, 'ivar');
       D.sfx('whoosh'); D.fx('confetti', 'ivar'); D.sfx('win');
       await D.say('astrid', 'Hurra för Ivar!');
       await D.say('mormor', 'När jag var liten dansade vi menuett här på Greveholm. Greve von Dys menuett!');
@@ -6857,7 +6947,7 @@ Content.add(() => {
     await D.anim(who, 'reach');
     D.sfx('magic');
     await D.say(who, 'Stenen passar precis i luckan på hans bröst!');
-    await UI.bigButton('Slå på Sprak!', 'Tryck på knappen!');
+    await UI.bigButton('Slå på Sprak!', 'Tryck på knappen!', false, 'lillan');
     Story.set('sprakVaken'); Story.changed(true);
     D.script('sprak', true);
     D.place('sprak', 'barnkammare', .05, -1.1, 0);
@@ -7298,7 +7388,7 @@ Content.add(() => {
     D.pose('greven', null);
     await D.walk('greven', 'sovrum', -.72, -.95, Math.PI);
     D.anim('greven', 'reach');
-    await UI.bigButton('Dra i snöret!', 'Nu! Hinken ska tippa!');
+    await UI.bigButton('Dra i snöret!', 'Nu! Hinken ska tippa!', false, 'ivar');
     D.call('tippa'); D.sfx('splash');
     await D.wait(500);
     D.sfx('fizz'); D.sfx('powder');
@@ -7371,8 +7461,8 @@ Content.add(() => {
       const c = [{id: 'astrid', room: 'koket', x: .35, z: -.85}, {id: 'mormor', room: 'musiksalong', x: -.1, z: -.75}, {id: 'melitta', room: 'vardagsrum', x: .1, z: -.8}];
       c.push({id: 'leif', room: S.flags.granInne ? 'hallen' : 'arbetsrum', x: S.flags.granInne ? .45 : -.25, z: -.6});
       if (!S.flags.sprakFri) c.push({id: 'sprak', room: 'grevkammare', x: .45, z: -1.0, pose: 'caged'});
-      else c.push({id: 'sprak', room: S.flags.diodaFri ? 'hallen' : 'tornet', x: S.flags.diodaFri ? -.95 : .45, z: -.8});
-      if (S.flags.diodaFri) c.push({id: 'dioda', room: 'hallen', x: -.7, z: -.9, face: .4}); else c.push({id: 'dioda', room: 'tornet', x: -.2, z: -.9, pose: 'sit'});
+      else c.push({id: 'sprak', room: S.flags.diodaFri ? 'hallen' : 'tornet', x: S.flags.diodaFri ? 1.05 : .45, z: S.flags.diodaFri ? -.62 : -.8, face: S.flags.diodaFri ? -.5 : 0});
+      if (S.flags.diodaFri) c.push({id: 'dioda', room: 'hallen', x: .72, z: -.68, face: -.4}); else c.push({id: 'dioda', room: 'tornet', x: -.2, z: -.9, pose: 'sit'});
       return c;
     },
     fridge: async who => {
@@ -7460,7 +7550,7 @@ Content.add(() => {
       await D.say(who, need ? 'Julpyntet! Kulor och en gyllene stjärna.' : 'Julpyntet! Vi har redan kulor, men här är stjärnan till toppen.');
     }});
   Things.def('gran5', {room: 'hallen', x: -.72, y: .6, z: -.95, spot: {r: .35}, name: S => S.goals.gran ? 'Julgranen' : 'Julgranen (pynta den!)', when: S => S.chapter === 5 && !!S.flags.granInne,
-    onSpawn: () => { Furniture.tree(true); }, sparkle: S => !S.goals.gran || paket(S) > under(S) || (S.goals.gran && S.goals.klappar && S.goals.parabol && !S.goals.julafton),
+    onSpawn: () => { Furniture.tree(true); const r = Furniture.get('hallen', 'm_rustning'); if (r) r.visible = false; }, sparkle: S => !S.goals.gran || paket(S) > under(S) || (S.goals.gran && S.goals.klappar && S.goals.parabol && !S.goals.julafton),
     use: async ({who}) => {
       const S = S0();
       const wrapped = ['leif', 'astrid', 'melitta', 'mormor'].filter(p => Story.has('paket_' + p));
@@ -10493,16 +10583,18 @@ const Net = (() => {
       case 'act': if (N.role === 'host') afterCut().then(ok => ok && Story.run(m.who, m.id, m.item)).then(() => send({t: 'done', k: m.k})); break;
       case 'combine': if (N.role === 'host') afterCut().then(ok => ok && Story.combine(m.who, m.a, m.b)).then(() => send({t: 'done', k: m.k})); break;
       case 'done': if (waits[m.k]) { waits[m.k](); delete waits[m.k]; } break;
-      case 'next': if (N.role === 'host') { D.next(); UI.cardClose && UI.cardClose(); UI.bigClose && UI.bigClose(true); } break;
+      case 'next': if (N.role === 'host') { D.next('guest'); UI.cardHit && UI.cardHit('guest'); } break;
+      case 'bigPress': if (N.role === 'host') UI.bigClose && UI.bigClose(true); break;
       case 'cardClose': UI.cardClose && UI.cardClose(true); break;
-      case 'mini': miniOver = false; Mini.run(m.name, Object.assign({}, m.opts, {who: myChar})).then(r => { if (r && r.win && !miniOver) send({t: 'miniWin'}); }); break;
-      case 'miniWin': if (N.role === 'host' && Mini.current) Mini.current.end(true); break;
-      case 'miniEnd': miniOver = true; if (Mini.current) Mini.current.end(true); break;
-      case 'big': UI.bigButton(m.label, m.sub, true); break;
+      case 'mini': miniOver = false; Mini.run(m.name, Object.assign({}, m.opts, {who: myChar})).then(r => { if (r && r.win && !miniOver) { send({t: 'miniWin'}); UI.waiting(otherChar); } }); break;
+      case 'miniAuto': if (Mini.current && Mini.current.autoplay) Mini.current.autoplay(); break;
+      case 'miniWin': if (N.role === 'host') { guestMini = true; if (guestWait) guestWait(); if (Mini.current && Mini.current.autoplay) { const cur = Mini.current; setTimeout(() => { if (Mini.current === cur) cur.autoplay(); }, 30000); } } break;
+      case 'miniEnd': miniOver = true; UI.waiting(null); if (Mini.current) Mini.current.end(true); break;
+      case 'big': UI.bigButton(m.label, m.sub, true, m.owner); break;
       case 'bigDone': UI.bigClose && UI.bigClose(false); break;
       case 'choose': UI.choose(m.title, m.options).then(v => send({t: 'chosen', k: m.k, v})); break;
       case 'chosen': if (waits[m.k]) { waits[m.k](m.v); delete waits[m.k]; } break;
-      case 'ping': UI.toast(m.call ? `${CHARS[m.from].name} ropar: Kom hit! (${ROOMS[m.room].name})` : `${CHARS[m.from].name} behöver dig i ${ROOMS[m.room].name.toLowerCase()}!`, Icons.faceHTML(m.from)); Sound.play('turn'); break;
+      case 'ping': { const txt = m.call ? `${CHARS[m.from].name} ropar: Kom hit! (${ROOMS[m.room].name})` : `${CHARS[m.from].name} behöver dig i ${ROOMS[m.room].name.toLowerCase()}!`; UI.toast(txt, Icons.faceHTML(m.from)); Sound.play('turn'); setTimeout(() => Sound.speak(txt.replace(/ \(.*\)$/, ' i ' + ROOMS[m.room].name.toLowerCase()), 'narrator'), 300); break; }
     }
   }
 
@@ -10515,9 +10607,19 @@ const Net = (() => {
   };
   N.d = (name, args) => { if (N.role === 'host' && N.connected()) send({t: 'd', n: name, a: args}); };
   // Minispel spelas på båda datorerna samtidigt; när värdens är klart slutar gästens också
-  N.mini = (name, opts) => { if (N.role === 'host' && N.connected()) send({t: 'mini', name, opts}); };
+  N.mini = (name, opts) => { guestMini = false; guestWait = null; if (N.role === 'host' && N.connected()) send({t: 'mini', name, opts}); };
+  N.guestMiniDone = () => guestMini || !N.connected();
+  // väntar tills gästen är klar; efter 30 sekunder får gästens spel hjälp att bli klart (och efter 20 till går vi vidare ändå)
+  N.waitGuestMini = () => new Promise(res => {
+    let over = false;
+    const fin = () => { if (over) return; over = true; guestWait = null; res(); };
+    guestWait = fin;
+    setTimeout(() => { if (!over) send({t: 'miniAuto'}); }, 30000);
+    setTimeout(fin, 50000);
+  });
   N.miniEnd = () => { if (N.role === 'host' && N.connected()) send({t: 'miniEnd'}); };
-  N.big = (label, sub) => { if (N.role === 'host' && N.connected()) send({t: 'big', label, sub}); };
+  N.big = (label, sub, owner) => { if (N.role === 'host' && N.connected()) send({t: 'big', label, sub, owner: owner || null}); };
+  N.bigPress = () => send({t: 'bigPress'});
   N.bigDone = () => { if (N.role === 'host' && N.connected()) send({t: 'bigDone'}); };
   N.cardClose = () => { if (N.role === 'host' && N.connected()) send({t: 'cardClose'}); };
   // Ett val som visas hos den som klickade (gästen eller värden)
@@ -10551,7 +10653,7 @@ const Net = (() => {
       send({t: 'npc', l});
     }
   };
-  let npcT = 0, miniOver = false;
+  let npcT = 0, miniOver = false, guestMini = false, guestWait = null;
   const afterCut = async () => { for (let t = 0; t < 80 && D.inCut(); t++) await new Promise(r => setTimeout(r, 250)); return !D.inCut(); };
   const targets = {};
   function remotePos(m) {

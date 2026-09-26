@@ -106,7 +106,7 @@ button { font-family: inherit; }
 #tipLine { font-size: .9em; color: #fff4d6; text-shadow: 0 1px 3px #000, 0 0 8px #000; min-height: 1.3em; text-align: center; transition: opacity .4s; }
 #bag { display: flex; gap: .45em; padding: .5em .7em; min-height: 4.4em; align-items: center; flex-wrap: wrap; justify-content: center; }
 #bag:empty::after { content: 'Väskan är tom'; opacity: .55; font-size: .9em; padding: 0 1em; }
-.slot { appearance: none; position: relative; width: 3.4em; height: 3.4em; border-radius: .8em; border: 2px solid rgba(217, 169, 60, .45); background: radial-gradient(circle at 50% 35%, rgba(255, 244, 214, .22), rgba(255, 255, 255, .04)); cursor: pointer; padding: .2em; transition: transform .12s, border-color .12s; }
+.slot { appearance: none; position: relative; width: 3.4em; height: 3.4em; border-radius: .8em; border: 2px solid rgba(217, 169, 60, .55); background: radial-gradient(circle at 50% 35%, rgba(255, 246, 222, .62), rgba(240, 222, 186, .3)); cursor: pointer; padding: .2em; transition: transform .12s, border-color .12s; }
 .slot:hover { transform: translateY(-3px) scale(1.06); border-color: var(--gold2); }
 .slot.sel { border-color: #fff; box-shadow: 0 0 0 3px var(--gold2), 0 0 1em rgba(245, 213, 122, .7); }
 .slot img, .slot svg { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
@@ -4870,14 +4870,15 @@ const UI = (() => {
     setTimeout(close, 2600 * Math.max(.2, Time.scale));
   });
   // Minispelet är klart här men inte hos den andra: "Bra! Vi väntar på Lillan …" (who = null tar bort rutan)
-  U.waiting = who => {
+  U.waiting = (who, text) => {
     let w = $('miniWait');
     if (!who) { if (w) w.hidden = true; return; }
     if (!w) { w = h('div', {id: 'miniWait', class: 'overlay'}); $('app').appendChild(w); }
     w.innerHTML = '';
-    w.append(h('div', {class: 'bigWait', html: Icons.faceHTML(who, 'full')}), h('p', {class: 'bigSub', text: `Bra jobbat! Vi väntar på ${CHARS[who].name} …`}));
+    const line = text || `Bra jobbat! Vi väntar på ${CHARS[who].name} …`;
+    w.append(h('div', {class: 'bigWait', html: Icons.faceHTML(who, 'full')}), h('p', {class: 'bigSub', text: line}));
     w.hidden = false;
-    Sound.speak(`Bra jobbat! Vi väntar på ${CHARS[who].name}.`, 'narrator');
+    Sound.speak(line.replace(/ …$/, '.'), 'narrator');
   };
   return U;
 })();
@@ -5192,6 +5193,7 @@ const D = (() => {
   // Prat: pratbubbla över figuren (eller berättarrutan) och uppläsning. Klick eller mellanslag går vidare.
   R.say = wrap('say', (who, text, opts = {}) => new Promise(res => {
     const a = actor(who), vis = a && a.visible, id = {};
+    if (vis && PLAYERS.includes(who) && !a.walking && Math.abs(a.face) > 1.2) a.targetFace = a.face > 0 ? .5 : -.5;
     UI.bubble(who, text, vis ? a : null);
     if (vis) { a.talking = true; a.talkId = id; }
     let done = false;
@@ -5337,7 +5339,11 @@ const Game = (() => {
     if (opts.fresh && role !== 'guest') await Story.startChapter(S.chapter);
     else if (role !== 'guest' && !opts.quiet) {
       if (ch && ch.resume) await ch.resume(S);
-      else { const g = Story.visibleGoals().find(x => !x.done); await D.say(G.other(), `Välkomna tillbaka till Greveholm! ${g ? 'Vi skulle: ' + g.text.replace(/ \(.*\)$/, '').toLowerCase() + '.' : ''}`); }
+      else {
+        const RECAP = {2: 'Förra gången letade vi efter Spraks delar.', 3: 'Förra gången lärde vi känna spökena Jean och Staffan.', 4: 'Förra gången vaknade Sprak, och Greven tog honom.', 5: 'Förra gången besegrade vi Greven!'};
+        const g = Story.visibleGoals().find(x => !x.done);
+        await D.say(G.other(), `Välkomna tillbaka till Greveholm! ${RECAP[S.chapter] || ''} ${g ? 'Nu ska vi: ' + g.text.replace(/ \(.*\)$/, '').toLowerCase() + '.' : ''}`.replace(/\s+/g, ' ').trim());
+      }
     }
   };
   G.stop = () => { running = false; Ambience.stop(); Flow.cancelAll(); D.reset(); Actors.hideAll(); Things.clear(); Dark.all(0, true); Dark.clearHoles(); S3.follow(null); UI.game(false); G.map(false); };
@@ -6119,6 +6125,7 @@ Content.add(() => {
         await D.wait(1300);
         D.anim(who, 'scared');
         await D.say(who, 'Någon nös! Det kom från matsalen!');
+        await D.say('leif', 'Nös någon? … Äh, det var nog bara dålig isolering. Allt har en naturlig förklaring!');
         Story.changed();
       }
     }});
@@ -6189,9 +6196,9 @@ Content.add(() => {
       D.sfx('thunder'); D.call('flash', 1.5);
       await D.cam([0, 5.55, .85], 2.4, 700, .05);
       D.call('sil', true); D.call('flash', 1.2); D.sfx('thunder');
-      await D.wait(900);
-      D.call('sil', false);
+      await D.wait(500);
       await D.say('greven', 'JEAN! STAFFAN!');
+      D.call('sil', false);
       await D.cam('matsalen', 3.1, 700);
       D.anim('ivar', 'scared'); D.anim('lillan', 'scared'); D.anim('melitta', 'scared');
       await D.say('leif', 'Bara åskan. Allt har en naturlig förklaring.');
@@ -6561,6 +6568,19 @@ Content.add(() => {
     use: async ({who}) => {
       const S = S0();
       D.sfx('door'); await D.anim(who, 'reach');
+      if (S.chapter === 2 && !S.flags.kylBu) {
+        // första gången: Staffan hoppar ut ur kylskåpet
+        Story.set('kylBu');
+        D.cut(true);
+        const p = Things.pos('kylskap');
+        D.script('staffan', true); D.place('staffan', 'koket', p.x - Castle.center('koket').x + .12, Math.min(-.35, p.z + .3), .3);
+        D.sfx('ghost'); D.anim(who, 'scared'); D.fx('magic', 'staffan');
+        await D.say('staffan', 'Bu!');
+        await D.say('staffan', 'Äh … jag letade bara efter ostkaka. Hej då!');
+        D.fx('magic', 'staffan'); D.hide('staffan'); D.script('staffan', false);
+        await D.say(who, 'Ett spöke i kylskåpet?! Det letade efter ostkaka.');
+        D.cut(false);
+      }
       if (S.chapter === 2) {
         let got = false;
         if (!Story.has('mjolk') && !S.flags.bakat) { Story.give('mjolk', 'kylskap'); got = true; }
@@ -6880,6 +6900,16 @@ Content.add(() => {
     }});
 
   /* ---------- Mormor spelar menuetten ---------- */
+  const ch3 = Chapters.get(3);
+  if (ch3 && !ch3.enter) ch3.enter = async (S, who, room) => {
+    if (room === 'galleriet' && !S.flags.galleriAska) {
+      Story.set('galleriAska');
+      D.sfx('thunder'); D.call('flash', 1.1); D.dark('galleriet', .65);
+      await D.wait(350); D.dark('galleriet', 0);
+      await D.say('greven', 'JEAN! STAFFAN! Var är mitt pudder?');
+      await D.say(who, pick(['Vem ropade? Det lät som … ett skelett?', 'Det kom från tornet. Någon letar efter pudder?']));
+    }
+  };
   Things.def('npc_mormor3', {room: S => S.chapter === 3 ? 'musiksalong' : null, actor: 'mormor', name: 'Mormor',
     use: async ({who}) => {
       const S = S0();
@@ -7263,8 +7293,12 @@ Content.add(() => {
   Things.def('grevdorr4', {room: 'lonnrum', x: -2.25, y: .45, z: -.6, spot: {r: .25}, name: 'Dörren till Grevens kammare', when: S => S.chapter === 4,
     use: async ({who}) => {
       D.sfx('knock');
-      await D.say(who, 'Låst! Genom nyckelhålet ser jag Greven dansa med en tavla av prinsessan. Och Sprak sitter i en fågelbur!');
+      D.cut(true);
+      await D.say(who, 'Låst! Jag tittar genom nyckelhålet …');
+      await D.cam('grevkammare', 2.6, 800);
+      await D.say(who, 'Greven dansar med en tavla av prinsessan! Och Sprak sitter i en fågelbur!');
       await D.say('greven', 'La la la, min menuett … JEAN! Var är mitt pudder?');
+      D.camBack(); D.cut(false);
     }});
   Things.def('bur', {room: 'grevkammare', x: .45, y: 0, z: -1.0, make: () => Props.make('bur'), name: 'Fågelburen', noClick: true, when: S => S.chapter === 4 && S.goals.lonndorr});
 
@@ -7707,6 +7741,26 @@ Content.add(() => {
       await D.say('nisse', 'Nu hittar tomten hit! Tack, och god jul!');
       D.cut(false);
     }});
+  // tomtens släde i guld flyger över himlen (ovanför slottet)
+  D.reg('slade', () => {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 128; const g = c.getContext('2d');
+    g.fillStyle = '#ffe9a0'; g.strokeStyle = '#ffe9a0'; g.lineWidth = 5; g.lineCap = 'round';
+    for (let k = 0; k < 3; k++) {
+      const x = 60 + k * 90;
+      g.beginPath(); g.ellipse(x, 70, 30, 13, 0, 0, 7); g.fill();
+      g.beginPath(); g.ellipse(x + 32, 52, 10, 8, 0, 0, 7); g.fill();
+      [[-18, 1], [-8, -1], [12, 1], [22, -1]].forEach(([dx, s]) => { g.beginPath(); g.moveTo(x + dx, 78); g.lineTo(x + dx + s * 6, 102); g.stroke(); });
+      g.beginPath(); g.moveTo(x + 32, 44); g.lineTo(x + 26, 26); g.moveTo(x + 29, 34); g.lineTo(x + 20, 30); g.moveTo(x + 34, 44); g.lineTo(x + 42, 26); g.moveTo(x + 39, 34); g.lineTo(x + 48, 31); g.stroke();
+    }
+    g.beginPath(); g.moveTo(300, 64); g.lineTo(350, 64); g.stroke();
+    g.beginPath(); g.moveTo(350, 58); g.lineTo(460, 58); g.quadraticCurveTo(470, 92, 440, 96); g.lineTo(360, 96); g.quadraticCurveTo(350, 80, 350, 58); g.fill();
+    g.beginPath(); g.moveTo(345, 108); g.lineTo(470, 108); g.quadraticCurveTo(485, 108, 488, 96); g.stroke();
+    g.beginPath(); g.arc(410, 36, 13, 0, 7); g.fill(); g.fillRect(398, 44, 26, 18);
+    g.beginPath(); g.moveTo(398, 30); g.lineTo(428, 30); g.lineTo(416, 10); g.closePath(); g.fill();
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(2.6, .65), new THREE.MeshBasicMaterial({map: S3.tex(c, true), transparent: true, depthWrite: false, opacity: .95}));
+    m.renderOrder = 7; S3.root().add(m);
+    Anim.tween(6500 * Math.max(.2, Time.scale), t => { m.position.set(-9 + t * 18, 7.4 + Math.sin(t * Math.PI) * 1.2, -3); if (Math.random() < .5) Fx.burst(m.position.clone().add(new THREE.Vector3(-1.2, -.1, 0)), {n: 2, color: [0xfff2c8, 0xffd75a], spread: .2, up: .1, size: .12, ms: 900}); }).then(() => S3.root().remove(m));
+  });
   D.reg('tvKlar', () => Furniture.tvClear && Furniture.tvClear(true));
   D.reg('tvLaxen', on => { Furniture.tvFace(on ? Icons.face('nisse', 'head') : null); if (on) Sound.play('sprak'); });
 
@@ -7748,7 +7802,7 @@ Content.add(() => {
     await D.call('raket');
     D.call('fyrverkeri');
     await D.say('narrator', 'Raketen lyfter! Tornet var Diodas rymdskepp hela tiden.');
-    D.sfx('bells');
+    D.sfx('bells'); D.call('slade');
     await D.say('narrator', 'Hör ni? Bjällror! Tomten hittar fram, för parabolen pekar rätt. God jul på Greveholm!');
     D.camBack();
     ['ivar', 'lillan'].forEach(w => D.anim(w, 'cheer'));
@@ -10702,7 +10756,8 @@ const Net = (() => {
     if (N.role === 'host' && N.connected() && who === otherChar) {
       const k = ++nonce;
       send({t: 'choose', k, title, options});
-      return new Promise(res => { waits[k] = res; setTimeout(() => { if (waits[k]) { delete waits[k]; res(null); } }, 120000); });
+      UI.waiting(otherChar, `${CHARS[otherChar].name} väljer …`);
+      return new Promise(res => { waits[k] = v => { UI.waiting(null); res(v); }; setTimeout(() => { if (waits[k]) { delete waits[k]; UI.waiting(null); res(null); } }, 120000); });
     }
     return UI.choose(title, options);
   };

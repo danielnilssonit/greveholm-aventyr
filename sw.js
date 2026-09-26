@@ -1,5 +1,5 @@
 // Greveholms-äventyret: sparar spelet i webbläsaren så att det startar även utan internet
-const CACHE = 'ghav-047163f026';
+const CACHE = 'ghav-77143bd219';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-32.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(async c => {

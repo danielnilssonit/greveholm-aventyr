@@ -972,7 +972,7 @@ const Sound = (() => {
     knock(t) { [0, .18, .36].forEach(d => { osc('sine', 150, t + d, .08, .18, sfxBus, {slide: .6}); noise(t + d, .04, .1, sfxBus, {f: 700, q: 1}); }); },
     rattle(t) { for (let i = 0; i < 8; i++) noise(t + i * .05, .04, .07, sfxBus, {f: 2500 + Math.random() * 2000, q: 3}); },
     squeak(t) { osc('sine', 1400, t, .25, .04, sfxBus, {slide: 1.5, vib: 12}); },
-    thunder(t) { noise(t, 2.5, .3, sfxBus, {f: 120, q: .5, to: 60, a: .02}); noise(t + .05, .6, .15, reverbIn, {f: 900, q: .4, to: 200}); },
+    thunder(t, k = 1) { if (Settings.mys) k *= .35; noise(t, 2.5, .3 * k, sfxBus, {f: 120, q: .5, to: 60, a: .02}); noise(t + .05, .6, .15 * k, reverbIn, {f: 900, q: .4, to: 200}); },
     pong2(t) { osc('square', 220, t, .06, .05, sfxBus, {filter: 2500}); },
     tile(t, i = 0) { const f = [392, 440, 494, 523, 587, 659, 740, 784, 880][i % 9]; osc('triangle', f, t, .35, .09, sfxBus); osc('sine', f * 2, t, .5, .03, reverbIn); },
     honk(t) { osc('sawtooth', 330, t, .25, .06, sfxBus, {filter: 1400}); osc('sawtooth', 415, t, .25, .05, sfxBus, {filter: 1400}); },
@@ -1001,13 +1001,27 @@ const Sound = (() => {
     ivar: [1.12, 1.04], lillan: [1.4, 1.06], melitta: [1.3, 1.08], mans: [1.02, 1.02], leif: [.86, .98], astrid: [1.12, 1.06],
     rolf: [.8, 1], ralf: [.95, 1.1], mormor: [1.2, .92], nisse: [1.5, 1.15]
   };
+  // Vilken röst figuren får: rätt sort (man eller kvinna) om datorn har flera svenska röster. Greven och Sprak tar hellre en
+  // lite robotaktig mansröst än en kvinnoröst. Har man valt en röst i inställningarna gäller den för alla.
+  const GENDER = {narrator: 'k', jean: 'm', staffan: 'm', greven: 'm', sprak: 'm', dioda: 'k', ivar: 'm', lillan: 'k', melitta: 'k', mans: 'm', leif: 'm', astrid: 'k', rolf: 'm', ralf: 'm', mormor: 'k', nisse: 'm'};
+  const MALE = /mattias|bengt|oskar|henrik|male\b|man\b/i, FEMALE = /sofie|hillevi|google|alva|klara|astrid|female|kvinn/i;
+  const ALT = {narrator: 1, astrid: 1, mormor: 1, leif: 1};   // figurer som tar den andra rösten av samma sort om det finns två
+  function voiceFor(who) {
+    const chosen = Settings.voiceName && voices.find(x => x.name === Settings.voiceName);
+    if (chosen || !voices.length) return chosen || null;
+    const g = GENDER[who] || 'k', list = voices.filter(v => (g === 'm' ? MALE : FEMALE).test(v.name));
+    if (!list.length) return voices[0];
+    const v = list[Math.min(ALT[who] || 0, list.length - 1)];
+    return voiceScore(v) >= voiceScore(voices[0]) - 4 || who === 'greven' || who === 'sprak' ? v : voices[0];
+  }
+  A.voiceFor = voiceFor;
   let speakT = 0;
   A.speak = (text, who = 'narrator', force) => {
     if ((!Settings.voice && !force) || !hasSpeech || !text || Time.scale < .2) return;
     try {
       const busy = speechSynthesis.speaking || speechSynthesis.pending;
       if (busy) speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(A.pronounce(strip(text).replace(/\bkr\b/g, 'kronor'))), v = voices.find(x => x.name === Settings.voiceName) || voices[0] || null;
+      const u = new SpeechSynthesisUtterance(A.pronounce(strip(text).replace(/\bkr\b/g, 'kronor'))), v = voiceFor(who);
       u.lang = v ? v.lang : 'sv-SE';
       if (v) u.voice = v;
       const k = v && NATURAL.test(v.name) ? .55 : 1, vc = VOICE[who] || VOICE.narrator;
@@ -1033,7 +1047,7 @@ const Sound = (() => {
     const guard = setTimeout(fin, est * 1.8 + 1500);
     try {
       if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(A.pronounce(strip(text))), v = voices.find(x => x.name === Settings.voiceName) || voices[0] || null;
+      const u = new SpeechSynthesisUtterance(A.pronounce(strip(text))), v = voiceFor(who);
       u.lang = v ? v.lang : 'sv-SE';
       if (v) u.voice = v;
       const k = v && NATURAL.test(v.name) ? .55 : 1, vc = VOICE[who] || VOICE.narrator;
@@ -4211,6 +4225,7 @@ const Things = (() => {
     if (L.d.spot || L.obj.userData.proxy) return T.pos(id).add(new THREE.Vector3(0, .1, .06));
     tmpBox.setFromObject(L.obj);
     const c = tmpBox.getCenter(new THREE.Vector3());
+    if (L.d.sparkY != null) return new THREE.Vector3(c.x, World.floorY(L.room) + L.d.sparkY, tmpBox.max.z + .05);
     return new THREE.Vector3(c.x, Math.min(tmpBox.max.y + .07, World.floorY(L.room) + 1.45), tmpBox.max.z + .05);
   };
   // Nästa steg i berättelsen: ett större guldglitter och en pil som guppar ovanför (id eller null)
@@ -4607,8 +4622,8 @@ const UI = (() => {
       ul.appendChild(li);
     });
     // ett nytt mål läses upp (för dem som inte läser själva)
-    const fresh = list.find(g => !g.done && !g.optional && !old.includes(g.id));
-    if (fresh && Game.running()) readGoal(fresh.id, prevKey ? 'Nytt mål: ' : 'Vårt uppdrag: ');
+    const fresh = list.filter(g => !g.done && !g.optional && !old.includes(g.id));
+    if (fresh.length && Game.running()) readGoal(fresh.map(g => g.id), prevKey ? (fresh.length > 1 ? `${NUMW[fresh.length][0].toUpperCase() + NUMW[fresh.length].slice(1)} nya uppdrag: ` : 'Nytt mål: ') : 'Vårt uppdrag: ');
   };
   U.goalDone = id => { Sound.play('deliver'); U.tip('Klart!'); };
   U.chapterBadge = (n, title) => {
@@ -4747,7 +4762,8 @@ const UI = (() => {
   let want = null;
   // läser upp ett nytt mål när det har blivit tyst: ingen pratar, inget kort och ingen filmscen (väntar högst 25 sekunder)
   let goalQ = null;
-  function readGoal(id, pre = 'Nytt mål: ') {
+  function readGoal(ids, pre = 'Nytt mål: ') {
+    const id = ids.join(',');
     goalQ = id;
     let n = 0;
     const tick = () => {
@@ -4755,8 +4771,8 @@ const UI = (() => {
       const quiet = !D.talking() && !D.inCut() && $('card').hidden && $('choose').hidden && !(typeof Mini !== 'undefined' && Mini.current) && !(window.speechSynthesis && speechSynthesis.speaking);
       if (!quiet) { if (++n < 50) setTimeout(tick, 500); return; }
       goalQ = null;
-      const g = Story.visibleGoals().find(x => x.id === id && !x.done);
-      if (g) { Sound.speak(pre + g.text.replace(/ \(.*\)$/, ''), 'narrator'); }
+      const gs = Story.visibleGoals().filter(x => ids.includes(x.id) && !x.done).map(x => x.text.replace(/ \(.*\)$/, ''));
+      if (gs.length) Sound.speak(pre + (gs.length > 1 ? gs.slice(0, -1).join('. ') + '. Och ' + gs[gs.length - 1].charAt(0).toLowerCase() + gs[gs.length - 1].slice(1) : gs[0]), 'narrator');
     };
     setTimeout(tick, 900);
   }
@@ -4826,13 +4842,15 @@ const UI = (() => {
   });
   U.pause = () => Menus.pause();
   U.cardClose = force => { if (cardDone) cardDone(true); };
+  U.closeChoose = () => { if (chooseDone) chooseDone(null); };
   U.chapterName = (n, title) => { $('chapTag').textContent = 'Kapitel ' + n; $('chapName').textContent = title; };
   // En stor knapp som barnet själv trycker på i de viktiga ögonblicken
   let bigRes = null;
   U.bigClose = (click) => { const o = $('bigBtn'); if (!o || o.hidden) return; o.hidden = true; if (bigRes) { const r = bigRes; bigRes = null; r(); } };
   // Den stora knappen. owner = barnet som trycker (på två datorer): den andra datorn visar vems tur det är.
-  U.bigButton = (label, sub, remote, owner) => new Promise(res => {
+  U.bigButton = (label, sub, remote, owner) => new Promise(async res => {
     if (Net.role === 'host' && !remote) Net.big(label, sub, owner);
+    if (owner && CHARS[owner] && Game.solo() && Settings.turns && owner !== Game.me()) await Game.turnTo(owner);
     let o = $('bigBtn');
     if (!o) { o = h('div', {id: 'bigBtn', class: 'overlay'}); $('app').appendChild(o); }
     o.innerHTML = '';
@@ -5022,30 +5040,34 @@ const Story = (() => {
   T.done = id => { if (S.goals[id]) return; S.goals[id] = 1; S.hint = {}; T.progress(); D.goalDone(id); T.changed(); };
   T.isDone = id => !!(S && S.goals[id]);
   T.found = (kind, id) => { const l = S.found[kind] || (S.found[kind] = []); if (l.includes(id)) return false; l.push(id); T.progress(); T.changed(); return true; };
+  const targetOf = g => { const t = typeof g.target === 'function' ? g.target(S) : g.target; return t && Things.get(t) ? t : null; };
+  const myRoom = () => typeof Game !== 'undefined' && Actors.has(Game.me()) ? Actors.get(Game.me()).room : null;
+  // nästa steg: ett spökbus först, annars ett öppet mål i samma rum som barnet, annars det första öppna målet
   T.goalTarget = () => {
     if (!S) return null;
-    const g = T.visibleGoals().find(x => !x.done && !x.optional);
-    if (!g) return null;
-    const t = typeof g.target === 'function' ? g.target(S) : g.target;
-    return t && Things.get(t) ? t : null;
+    if (S.flags.prank && Things.get('prank')) return 'prank';
+    const tg = T.visibleGoals().filter(x => !x.done && !x.optional).map(targetOf).filter(Boolean);
+    if (!tg.length) return null;
+    const room = myRoom();
+    return tg.find(t => Things.room(t) === room) || tg[0];
   };
   T.visibleGoals = () => {
     const ch = Chapters.get(S.chapter);
     return ch ? (ch.goals || []).filter(g => !g.show || g.show(S)).map(g => Object.assign({}, g, {done: !!S.goals[g.id], text: typeof g.text === 'function' ? g.text(S) : g.text, icon: typeof g.icon === 'function' ? g.icon(S) : g.icon})) : [];
   };
   // Nästa ledtråd: första målet som inte är klart. Varje gång blir ledtråden tydligare: 0 vad, 1 var (rummet lyser), 2 visa (fotspår)
-  T.hint = () => {
+  T.hint = (lv = S.hint) => {
     const pr = S.flags.prank;
     if (pr) {
-      const k = S.hint.__prank || 0; S.hint.__prank = Math.min(k + 1, 2);
+      const k = lv.__prank || 0; lv.__prank = Math.min(k + 1, 2);
       return {goal: {id: '__prank'}, level: k, target: 'prank', text: [`Ett spöke gömde ${itemName(pr.item).toLowerCase()}! Titta efter något som skimrar.`, `Det skimrar i ${ROOMS[pr.room].name.toLowerCase()}. Där är saken!`, 'Klicka på skimret. Följ glittret!'][k]};
     }
-    const vg = T.visibleGoals();
-    const g = vg.find(x => !x.done && !x.optional) || vg.find(x => !x.done);
+    const vg = T.visibleGoals(), open = vg.filter(x => !x.done && !x.optional), room = myRoom();
+    const g = open.find(x => { const t = targetOf(x); return t && Things.room(t) === room; }) || open[0] || vg.find(x => !x.done);
     if (!g) return null;
     const hs = typeof g.hints === 'function' ? g.hints(S) : g.hints || [g.text];
-    const k = S.hint[g.id] || 0;
-    S.hint[g.id] = Math.min(k + 1, 2);
+    const k = lv[g.id] || 0;
+    lv[g.id] = Math.min(k + 1, 2);
     const target = typeof g.target === 'function' ? g.target(S) : g.target;
     return {goal: g, text: hs[Math.min(k, hs.length - 1)], level: k, target};
   };
@@ -5085,6 +5107,7 @@ const Story = (() => {
         else if (TOOLS[item] && needOf(d, ctx) === who && d.use) await d.use(ctx);
         else if (TOOLS[item]) { await D.anim(who, item === 'svard' ? 'swing' : 'reach'); D.sfx(item === 'svard' ? 'whoosh' : 'bip'); await D.say(who, pick(TOOL_NOPE[item])); }
         else if (d.onItem) await d.onItem(ctx);
+        else if (/^paket_/.test(item)) await D.say(who, 'Den julklappen ska ligga under granen på julafton!');
         else await D.say(who, pick(NOPE));
       } else if (needOf(d, ctx) && needOf(d, ctx) !== who) {
         const nd = needOf(d, ctx);
@@ -5164,7 +5187,7 @@ const Story = (() => {
     clearTimeout(saveT); saveT = setTimeout(T.save, instant ? 0 : 600);
   };
   T.save = () => {
-    if (!S || Game.role() === 'guest' || Game.demo) return;
+    if (!S || Game.role() === 'guest' || Game.demo || !Game.running()) return;
     // mitt i en filmscen sparas inget (då blir det sparade alltid ett läge man kan fortsätta från)
     if (D.inCut()) { clearTimeout(saveT); saveT = setTimeout(T.save, 2500); return; }
     PLAYERS.forEach(p => { if (Actors.has(p)) { const a = Actors.get(p); if (a.room) S.pos[p] = {room: a.room, x: +a.pos.x.toFixed(3), z: +a.pos.z.toFixed(3)}; } });
@@ -5177,7 +5200,7 @@ const Story = (() => {
     try { if (ch && ch.enter) await ch.enter(S, who, room); } catch (e) { if (!(e instanceof Cancel)) console.error(e); }
     T.changed();
   };
-  T.applyRemote = s => { S = s; Things.refresh(S); T.cast(); T.lights(); UI.goals(T.visibleGoals()); UI.bag(S.inv); const ch = Chapters.get(S.chapter); if (ch && UI.chapterName) UI.chapterName(S.chapter, ch.title); };
+  T.applyRemote = s => { if (!S || JSON.stringify(S.goals) !== JSON.stringify(s.goals) || S.inv.length !== s.inv.length) T.progress(); S = s; Things.refresh(S); T.cast(); T.lights(); UI.goals(T.visibleGoals()); UI.bag(S.inv); const ch = Chapters.get(S.chapter); if (ch && UI.chapterName) UI.chapterName(S.chapter, ch.title); };
   T.load = () => Store.get('save', null);
   T.use = s => { S = s; };
   return T;
@@ -5188,10 +5211,16 @@ const D = (() => {
   const R = {};
   let next = null, cut = 0;
   // I nätverksspel skickar värden varje anrop till gästen (som gör samma sak)
-  const wrap = (name, fn) => (...a) => { if (typeof Net !== 'undefined' && Net.role === 'host') Net.d(name, a); return fn(...a); };
+  // Varje spelomgång har ett nummer. Avslutar man spelet slutar alla pågående scener (de kastar Cancel när de fortsätter).
+  let session = 0;
+  // (ett avbrott är tyst för den som inte väntar på steget; den som väntar får Cancel)
+  const alive = p => { const s = session, q = Promise.resolve(p).then(v => { if (s !== session) throw new Cancel(); return v; }); q.catch(() => {}); return q; };
+  R.bump = () => { session++; };
+  R.alive = alive;
+  const wrap = (name, fn) => (...a) => { if (typeof Net !== 'undefined' && Net.role === 'host') Net.d(name, a); const r = fn(...a); return r && typeof r.then === 'function' ? alive(r) : r; };
   const actor = who => (who && who !== 'narrator' && CHARS[who] ? Actors.get(who) : null);
   // Prat: pratbubbla över figuren (eller berättarrutan) och uppläsning. Klick eller mellanslag går vidare.
-  R.say = wrap('say', (who, text, opts = {}) => new Promise(res => {
+  const sayImpl = (who, text, opts = {}) => new Promise(res => {
     const a = actor(who), vis = a && a.visible, id = {};
     if (vis && PLAYERS.includes(who) && !a.walking && Math.abs(a.face) > 1.2) a.targetFace = a.face > 0 ? .5 : -.5;
     UI.bubble(who, text, vis ? a : null);
@@ -5204,7 +5233,9 @@ const D = (() => {
     const adv = (from, force) => gate.hit(from, force);
     next = adv;
     Sound.sayP(text, CHARS[who] ? who : 'narrator').then(() => { quiet(); setTimeout(fin, (opts.hold ?? 450) * Time.scale); });
-  }));
+  });
+  R.say = wrap('say', sayImpl);
+  R.sayLocal = (who, text, opts) => alive(sayImpl(who, text, opts));
   R.next = (from = 'host') => { if (next) next(from); };
   // värdens replik är slut: gästen tar också bort sin (gästen klickar inte bort repliker själv)
   R.sayEnd = () => { if (next) next('host', true); };
@@ -5251,7 +5282,7 @@ const D = (() => {
   R.script = wrap('script', (who, on) => { Actors.get(who).scripted = on; });
   R.sfx = wrap('sfx', (name, ...a) => Sound.play(name, ...a));
   R.mood = wrap('mood', m => Sound.mood(m));
-  R.wait = ms => new Promise(res => setTimeout(res, ms * Time.scale));
+  R.wait = ms => alive(new Promise(res => setTimeout(res, ms * Time.scale)));
   // Kameran: tittar på ett rum, en figur eller en sak; camBack går tillbaka till att följa spelaren
   R.cam = wrap('cam', (target, d = 3.2, ms = 900, pitch) => {
     let p;
@@ -5282,12 +5313,14 @@ const D = (() => {
   R.mini = async (name, opts) => {
     const co = typeof Net !== 'undefined' && Net.role === 'host' && Net.connected();
     if (typeof Net !== 'undefined') Net.mini(name, opts);
+    const s0 = session;
     const r = await Mini.run(name, opts);
+    if (s0 !== session) throw new Cancel();
     if (co && !Net.guestMiniDone()) { UI.waiting(Game.other()); await Net.waitGuestMini(); UI.waiting(null); }
     if (typeof Net !== 'undefined') Net.miniEnd();
     return r;
   };
-  R.choose = (who, title, options) => typeof Net !== 'undefined' ? Net.choose(who, title, options) : UI.choose(title, options);
+  R.choose = (who, title, options) => alive(typeof Net !== 'undefined' ? Net.choose(who, title, options) : UI.choose(title, options));
   R.badge = wrap('badge', (n, title) => UI.chapterBadge(n, title));
   R.reset = () => { next = null; cut = 0; UI.letterbox(false); Game.setCut(false); };
   return R;
@@ -5346,7 +5379,14 @@ const Game = (() => {
       }
     }
   };
-  G.stop = () => { running = false; Ambience.stop(); Flow.cancelAll(); D.reset(); Actors.hideAll(); Things.clear(); Dark.all(0, true); Dark.clearHoles(); S3.follow(null); UI.game(false); G.map(false); };
+  G.stop = () => {
+    running = false; D.bump();
+    // allt som är öppet stängs (scenen som pågick slutar av sig själv)
+    try { if (typeof Mini !== 'undefined' && Mini.current) Mini.current.end(false); } catch (e) { /* redan slut */ }
+    try { if (typeof Patrol !== 'undefined') Patrol.stop(); } catch (e) { /* ingen patrull */ }
+    UI.cardClose && UI.cardClose(true); UI.bigClose && UI.bigClose(); UI.waiting && UI.waiting(null); UI.closeChoose && UI.closeChoose();
+    Ambience.stop(); Flow.cancelAll(); D.reset(); Actors.hideAll(); Things.clear(); Dark.all(0, true); Dark.clearHoles(); S3.follow(null); UI.game(false); G.map(false);
+  };
 
   /* ---------- Ljuset: dag, natt, strömavbrott och mörka rum ---------- */
   let lastL = {};
@@ -5447,7 +5487,11 @@ const Game = (() => {
     const a = Actors.get(me), L = Things.get(id);
     if (!L || busy[me]) return;
     if (mapMode) G.map(false);
-    if (L.d.exit) { const ex = typeof L.d.exit === 'function' ? L.d.exit(Story.S()) : L.d.exit; return ex && ex.length ? G.useExit(ex) : D.say(me, Story.whyBlocked(L.room)); }
+    if (L.d.exit) {
+      const ex = typeof L.d.exit === 'function' ? L.d.exit(Story.S()) : L.d.exit;
+      if (ex && ex.length) return G.useExit(ex);
+      if (L.d.stair) return D.say(me, Story.whyBlocked(L.room));
+    }
     busy[me] = true;
     if (item) { G.item = null; UI.itemCursor(null); }
     try {
@@ -5557,7 +5601,7 @@ const Game = (() => {
   // Ledtråd: först vad, sedan var (rummet lyser), sist fotspår fram till saken. Syskonet (eller spökena) säger den.
   G.hint = async (auto) => {
     if (!running || cut || D.talking() || busy[me]) return;
-    const h = Story.hint();
+    const h = Story.hint(hintLvl);
     lastAuto = performance.now();
     if (!h) { if (!auto) await D.say(G.other(), 'Jag vet inte riktigt. Vi utforskar lite till!'); return; }
     const S = Story.S(), ghost = S.flags.spokvanner ? pick(['jean', 'staffan']) : null;
@@ -5569,20 +5613,23 @@ const Game = (() => {
     const tgt = h.target && Things.get(h.target) ? h.target : null;
     const far = tgt && Things.room(tgt) !== Actors.get(me).room;
     if (tgt) showGoal = tgt;
-    await D.say(speaker, h.text);
+    // ledtrådarna sägs bara på den här datorn (den andra datorn har sina egna)
+    await D.sayLocal(speaker, h.text);
     if (speaker === ghost) { Actors.get(ghost).show(false); Actors.get(ghost).hint = false; }
+    // under smygnatten: ingen karta och ingen promenad rakt in i lyktan
+    if (typeof Patrol !== 'undefined' && Patrol.active()) { if (h.level >= 1) await D.sayLocal(G.other(), 'Sovrummet är längst bort åt höger. Göm dig när lyktan kommer!'); return; }
     // andra gången: kartan öppnas och rummet blinkar (man kan klicka på det och åka dit)
     if (h.level === 1 && far && !cut) {
       G.map(true, Things.room(tgt));
-      await D.say(G.other(), 'Klicka på rummet som blinkar!');
+      await D.sayLocal(G.other(), 'Klicka på rummet som blinkar!');
     }
     // tredje gången: figuren går dit, och barnet klickar själv på saken med guldpilen
     else if (h.level >= 2 && tgt && !cut) {
-      await D.say(G.other(), far ? 'Följ med, jag visar vägen!' : 'Titta, där! Där pilen är.');
+      await D.sayLocal(G.other(), far ? 'Följ med, jag visar vägen!' : 'Titta, där! Där pilen är.');
       if (far && !busy[me]) { const sp = Things.standPoint(tgt, Actors.get(me)); if (sp) await G.walkTo(Things.room(tgt), sp.x, sp.z); }
     }
   };
-  let lastAuto = performance.now(), showGoal = null, goalT = null, goalSince = 0, goalCheck = 0;
+  let lastAuto = performance.now(), showGoal = null, goalT = null, goalSince = 0, goalCheck = 0, hintLvl = {};
   // guldpilen visas direkt på nästa steg (t.ex. första målet i spelet)
   G.pointGoal = () => { const t = Story.goalTarget(); if (t) { showGoal = t; goalT = t; Things.goal(t); } };
   // Q: kalla på syskonet (ensam följer det med igen, tillsammans får den andra en pil)
@@ -5662,13 +5709,13 @@ const Game = (() => {
     } else stepT = .05;
     // efter en och en halv minut utan framsteg kommer en ledtråd av sig själv
     const now = performance.now();
-    if (!cut && !D.talking() && !busy[me] && !mapMode && Settings.autoHints !== false && now - Story.lastProgress > 45000 && now - lastAuto > 45000 && role !== 'guest') G.hint(true);
+    if (!cut && !D.talking() && !busy[me] && !mapMode && Settings.autoHints !== false && now - Story.lastProgress > 45000 && now - lastAuto > 45000) G.hint(true);
     // nästa steg får en guldpil när man har letat en stund (eller direkt efter en ledtråd)
     goalCheck -= dt;
     if (goalCheck <= 0) {
       goalCheck = .5;
       const tg = Story.goalTarget();
-      if (tg !== goalT) { goalT = tg; goalSince = now; if (showGoal !== tg) showGoal = null; }
+      if (tg !== goalT) { goalT = tg; goalSince = now; hintLvl = {}; if (showGoal !== tg) showGoal = null; }
       Things.goal(tg && (showGoal === tg || now - goalSince > 20000) ? tg : null);
     }
     // Lillans voltmeter piper fortare ju närmare en hemlighet hon är (ensam även när man styr Ivar och Lillan är i samma rum)
@@ -6219,7 +6266,7 @@ Content.add(() => {
     }});
   // Effekterna i kapitlet (körs på båda datorerna via D.call)
   D.reg('flikar', id => { const L = Things.get(id), n = L && L.obj.userData.nodes; if (!n) return; Anim.tween(500, t => { ['flik_v', 'flik_h'].forEach((f, i) => { if (n[f]) n[f].rotation.x = (i ? -1 : 1) * 2.0 * easeOut(t); }); }); });
-  D.reg('flash', k => S3.flash(k));
+  D.reg('flash', k => { if (!Settings.mys) S3.flash(k); });
   D.reg('ch1spak', () => { const L = Things.get('proppskap'), lv = L && L.obj.userData.nodes && L.obj.userData.nodes.spak; if (lv) { const r0 = lv.rotation.x; Anim.tween(350, t => { lv.rotation.x = r0 + easeIn(t) * 2.6; }); } });
   D.reg('proppDorr', () => { const L = Things.get('proppskap'), d = L && L.obj.userData.nodes && L.obj.userData.nodes['dörr']; if (d && !d.userData.open) { d.userData.open = 1; const r0 = d.rotation.y; Anim.tween(600, t => { d.rotation.y = r0 - easeOut(t) * 1.9; }); } });
   D.reg('tvSpoke', on => { if (Furniture.tvFace) Furniture.tvFace(on ? Icons.face('staffan', 'head') : null); });
@@ -6908,10 +6955,10 @@ Content.add(() => {
   if (ch3 && !ch3.enter) ch3.enter = async (S, who, room) => {
     if (room === 'galleriet' && !S.flags.galleriAska) {
       Story.set('galleriAska');
-      D.sfx('thunder'); D.call('flash', 1.1); D.dark('galleriet', .65);
-      await D.wait(350); D.dark('galleriet', 0);
-      await D.say('greven', 'JEAN! STAFFAN! Var är mitt pudder?');
-      await D.say(who, pick(['Vem ropade? Det lät som … ett skelett?', 'Det kom från tornet. Någon letar efter pudder?']));
+      D.sfx('thunder', .35);
+      await D.wait(600);
+      await D.say('greven', 'Jean! Staffan! Var är mitt pudder?');
+      await D.say('lillan', 'Hihi! Någon har tappat sitt pudder. Det lät som … ett skelett?');
     }
   };
   Things.def('npc_mormor3', {room: S => S.chapter === 3 ? 'musiksalong' : null, actor: 'mormor', name: 'Mormor',
@@ -7051,7 +7098,8 @@ Content.add(() => {
     await UI.bigButton('Slå på Sprak!', 'Tryck på knappen!', false, 'lillan');
     Story.set('sprakVaken'); Story.changed(true);
     D.script('sprak', true);
-    D.place('sprak', 'barnkammare', .05, -1.1, 0);
+    D.place('ivar', 'barnkammare', -.45, -.55, .4); D.place('lillan', 'barnkammare', .55, -.55, -.4);
+    D.place('sprak', 'barnkammare', .05, -1.2, 0);
     D.sfx('sprak'); D.shake(.06); D.fx('magic', 'sprak');
     await D.wait(900);
     await D.say('sprak', 'BIP BOP! Sprak är vaken! Sprak är glad!');
@@ -7059,8 +7107,8 @@ Content.add(() => {
     await D.say('lillan', 'Han lever! Jag har byggt en riktig robot!');
     await D.say('sprak', 'Beräknar … beräknar … svar: pepparkaka.');
     await D.say('ivar', 'Haha! Välkommen, Sprak!');
-    await D.walk('sprak', 'barnkammare', -.4, -.9);
-    await D.walk('sprak', 'barnkammare', .6, -.7);
+    await D.walk('sprak', 'barnkammare', -.3, -.95);
+    await D.walk('sprak', 'barnkammare', .2, -.78);
     await D.say('sprak', 'Signal! Signal från tornet! Dioda! DIODA!');
     D.sfx('whoosh');
     await D.run('sprak', 'barnkammare', -1.05, -.6);
@@ -7181,7 +7229,7 @@ Content.add(() => {
         hints: ['Greven älskar sin menuett.', 'Kanske finns den på en skiva i lönnrummet?', 'Ta skivan i lönnrummet.']},
       {id: 'natt4', text: 'Vänta tills det blir natt i barnkammaren', icon: 'mane', show: S => S.goals.falla && (Story.has('skiva') || S.goals.skiva) && !S.flags.natt4, target: 'vaningssang4',
         hints: ['Allt är klart. Nu väntar vi på natten.', 'Gå till barnkammaren.', 'Klicka på våningssängen.']},
-      {id: 'smyg', text: 'Smyg till sovrummet och spela skivan', icon: 'skiva', show: S => !!S.flags.natt4, target: S => S.flags.framme ? 'grammofon' : null,
+      {id: 'smyg', text: 'Smyg till sovrummet och spela skivan', icon: 'skiva', show: S => !!S.flags.natt4, target: 'grammofon',
         hints: ['Göm dig när lyktan pekar mot dig!', 'Gardiner och fåtöljer är bra gömställen.', 'Smyg genom musiksalongen, galleriet och biblioteket till sovrummet.']}
     ],
     lights: S => ({night: S.flags.natt4 ? 1 : 0, power: true, dark: S.flags.natt4 && !S.flags.skivaPa ? {musiksalong: .82, galleriet: .88, bibliotek: .88, sovrum: .7, barnkammare: .6} : S.flags.natt4 ? {sovrum: .45} : {}}),
@@ -7227,16 +7275,16 @@ Content.add(() => {
   });
 
   /* ---------- Lönndörren bakom bokhyllan ---------- */
-  Things.def('bokhylla', {room: 'bibliotek', furniture: 'm_bokhylla', name: S => S.flags.lonndorr ? 'Lönngången' : 'Bokhyllan', secret: S => S.chapter === 4 && !S.flags.lonndorr,
+  Things.def('bokhylla', {room: 'bibliotek', furniture: 'm_bokhylla', name: S => S.flags.lonndorr ? 'Lönngången upp till lönnrummet' : 'Bokhyllan', secret: S => S.chapter === 4 && !S.flags.lonndorr,
+    // öppen lönngång: ett klick går upp (samma som trappskylten)
+    exit: S => S.flags.lonndorr ? World.exits('bibliotek').filter(e => e.to === 'lonnrum') : null,
+    need: S => S.chapter === 4 && !S.flags.surrar && !S.flags.lonndorr ? 'lillan' : null, needText: 'Böcker och en liten elefant. Lillan, mät med voltmetern!',
     sparkle: S => S.chapter === 4 && !S.flags.lonndorr && !!S.flags.surrar,
     use: async ({who}) => {
       const S = S0();
       if (S.flags.lonndorr) return D.say(who, 'Lönngången bakom bokhyllan leder upp till lönnrummet.');
       if (S.chapter < 4) return D.say(who, pick(['Böcker om spöken, rymden och robotar.', 'En bok heter: Hundra sätt att laga en säkring.', 'Det står en liten elefant av porslin i hyllan.']));
-      if (!S.flags.surrar) {
-        if (who !== 'lillan') { await D.say(who, 'Böcker och en liten elefant. Lillan, mät med voltmetern!'); if (Game.solo()) await Game.delegate('lillan', 'bokhylla', 'voltmeter'); return; }
-        return measureShelf();
-      }
+      if (!S.flags.surrar) return measureShelf();
       await turnElephant(who);
     },
     items: {voltmeter: () => { if (S0().chapter < 4) return D.say('lillan', 'Bip … bokhyllan surrar lite. Konstigt. Men inte just nu.'); return S0().flags.lonndorr ? D.say('lillan', 'Lönngången är redan öppen!') : measureShelf(); }}});
@@ -7289,7 +7337,7 @@ Content.add(() => {
       D.cut(false);
       if (Kit.curio('karleksbrev', S0())) await Kit.findCurio(who, 'karleksbrev');
       await D.wait(800);
-      await Kit.prank('dagbok', 'lonnrum', -1.9, -1.2, 'jean');
+      if (Story.has('dagbok')) Story.take('dagbok');
     }});
   Things.def('skiva_lonn', {room: 'lonnrum', x: -1.5, y: 0, z: -1.1, model: 'i_grammofonskiva', make: () => { const g = new THREE.Group(); const d = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, .006, 28), new THREE.MeshStandardMaterial({color: 0x111111, roughness: .3})); d.position.y = .003; g.add(d); const l = new THREE.Mesh(new THREE.CylinderGeometry(.022, .022, .007, 20), new THREE.MeshStandardMaterial({color: 0xc7324a})); l.position.y = .004; g.add(l); return g; },
     name: 'En grammofonskiva', when: S => S.chapter >= 4 && !S.flags.skivaTagen, secret: true,
@@ -7426,7 +7474,7 @@ Content.add(() => {
       D.hide('jean'); D.script('jean', false);
       D.camBack(); D.cut(false);
       startPatrol();
-      UI.tip('Göm dig bakom gardiner och fåtöljer när lyktan pekar åt ditt håll!');
+      UI.tip('Göm dig bakom gardiner och fåtöljer när lyktan pekar åt ditt håll!', {say: true});
     }});
   function startPatrol() {
     Patrol.start('greven', [['galleriet', .6, -.85, 1.8], ['galleriet', -.7, -.6, 1.2], ['galleriet', .2, -1.1, 1.5], ['bibliotek', -.6, -.75, 1.8], ['bibliotek', .65, -.9, 1.6], ['bibliotek', -.2, -.55, 1.2]], caught);
@@ -7455,14 +7503,14 @@ Content.add(() => {
   HIDE.forEach(([id, room, x, z, name]) => {
     Things.def(id, {room, x, y: 0, z, model: name === 'Gardinen' ? 'm_gardin' : null, spot: name === 'Gardinen' ? null : {r: .2}, rot: name === 'Gardinen' ? 0 : 0,
       make: name === 'Gardinen' ? () => { const g = new THREE.Group(); const m = new THREE.MeshStandardMaterial({color: 0x8a1f2b, roughness: .8, side: THREE.DoubleSide}); for (let k = 0; k < 2; k++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(.08, .1, 1.2, 12, 1, true, 0, Math.PI), m); c.position.set(k ? .09 : -.09, .6, 0); g.add(c); } return g; } : null,
-      name: 'Göm dig: ' + name.toLowerCase(), when: S => S.chapter === 4 && !!S.flags.natt4 && !S.flags.skivaPa, sparkle: true,
+      name: 'Göm dig: ' + name.toLowerCase(), when: S => S.chapter === 4 && !!S.flags.natt4 && !S.flags.skivaPa, sparkle: true, sparkY: .45,
       at: {x, z: Math.min(-.2, z + .12)},
       use: async ({who}) => { D.call('gom', who); D.sfx('rummage'); }});
   });
   D.reg('lykta', (id, on) => Patrol.guestFx(id, on));
   D.reg('tuba', room => Patrol.tuba(room));
   D.reg('mumla', text => Patrol.mumble(text));
-  D.reg('gom', who => { const a = Actors.get(who); a.hidden = true; a.setPose('hide'); if (who === Game.me()) UI.tip('Du gömmer dig. Gå vidare när lyktan pekar åt andra hållet!'); if (Game.solo()) { const o = Actors.get(Game.other()); o.hidden = true; } });
+  D.reg('gom', who => { const a = Actors.get(who); a.hidden = true; a.setPose('hide'); if (who === Game.me()) UI.tip('Du gömmer dig. Gå vidare när lyktan pekar åt andra hållet!', {say: true}); if (Game.solo()) { const o = Actors.get(Game.other()); o.hidden = true; } });
   // framme i sovrummet
   const ch4 = Chapters.get(4);
   // fortsätter man ett sparat spel mitt i natten börjar smygandet om
@@ -7481,7 +7529,7 @@ Content.add(() => {
   async function playRecord(who) {
     D.cut(true);
     Patrol.stop();
-    Story.take('skiva'); Story.set('skivaPa');
+    Story.set('skivaPa'); Story.take('skiva');
     await D.anim(who, 'reach');
     D.mood('menuett');
     await D.say(who, 'Menuetten spelar! Snabbt, göm er under sängen!');
@@ -7505,6 +7553,7 @@ Content.add(() => {
     await D.say('greven', 'NEEEJ! JULMUST! Det fräser! Mina ben!');
     D.call('pulver');
     await D.wait(1800);
+    await D.say('jean', 'Oroa er inte! Han blev bara till puder. Skelett tål sånt, han mår bra.');
     D.hide('greven'); D.script('greven', false);
     Story.set('grevenBorta'); Story.changed(true);
     D.pose('ivar', null); D.pose('lillan', null);
@@ -7547,6 +7596,14 @@ Content.add(() => {
 Content.add(() => {
   const S0 = () => Story.S();
   const kulor = S => Story.count('kula');
+  // närmaste julklapp som ligger kvar i slottet (räknat i rum från den man styr); finns ingen kvar: granen om man bär på någon
+  const nearestPresent = () => {
+    const left = [1, 2, 3, 4].map(n => 'paket' + n).filter(id => Things.get(id));
+    if (!left.length) return ['leif', 'astrid', 'melitta', 'mormor'].some(p => Story.has('paket_' + p)) ? 'gran5' : null;
+    const me = Actors.get(Game.me()).room;
+    const far = id => { const p = World.roomPath(me, Things.room(id), Game.me()); return Array.isArray(p) ? p.length : 99; };
+    return left.sort((a, b) => far(a) - far(b))[0];
+  };
   const paket = S => ['leif', 'astrid', 'melitta', 'mormor'].filter(p => Story.has('paket_' + p) || S.flags['under_' + p]).length;
   const under = S => ['leif', 'astrid', 'melitta', 'mormor'].filter(p => S.flags['under_' + p]).length;
 
@@ -7558,7 +7615,7 @@ Content.add(() => {
         hints: S => !S.flags.grevdorr ? ['Nyckeln passar i dörren till Grevens kammare.', 'Dörren är i lönnrummet.', 'Använd tornnyckeln på dörren i lönnrummet.'] : !S.flags.sprakFri ? ['Sprak sitter i fågelburen!', 'Buren står i Grevens kammare.', 'Klicka på buren.'] : ['Prinsessan Dioda är så törstig. Hon har suttit inlåst i två hundra år!', 'Hon vill ha något kallt att dricka. Kylskåpet!', 'Ge henne en kall julmust ur kylskåpet.']},
       {id: 'gran', text: S => `Pynta granen i hallen (${Math.min(5, kulor(S) + (S.flags.kulorPaGranen || 0))} av 5 kulor)`, icon: 'kula', show: S => S.goals.torn, target: S => kulor(S) + (S.flags.kulorPaGranen || 0) >= 5 && (Story.has('stjarna') || S.goals.gran) ? 'gran5' : 'julpynt',
         hints: ['Granen står i Stora hallen och väntar på pynt.', 'Resten av julpyntet ligger i en låda på vinden.', 'Hämta pyntet på vinden och klicka sedan på granen.']},
-      {id: 'klappar', text: S => `Lägg julklapparna under granen (${under(S)} av 4)`, icon: 'paket', show: S => S.goals.torn, target: S => Object.keys({leif: 1, astrid: 1, melitta: 1, mormor: 1}).map(p => Story.has('paket_' + p) ? 'gran5' : null).find(Boolean) || ['leif', 'astrid', 'melitta', 'mormor'].map((p, i) => !S.flags['paket' + (i + 1)] ? 'paket' + (i + 1) : null).find(Boolean),
+      {id: 'klappar', text: S => `Lägg julklapparna under granen (${under(S)} av 4)`, icon: 'paket', show: S => S.goals.torn, target: S => nearestPresent() || ['leif', 'astrid', 'melitta', 'mormor'].map((p, i) => !S.flags['paket' + (i + 1)] ? 'paket' + (i + 1) : null).find(Boolean),
         hints: ['Fyra julklappar är gömda i slottet. Varje klapp har en bild på den som ska få den.', 'Lillans voltmeter piper nära gömda saker.', 'Följ glittret till nästa julklapp.']},
       {id: 'parabol', text: 'Hjälp Glada Laxen med parabolen', icon: 'stjarna', show: S => S.goals.torn, target: S => S.flags.laxenPrat ? 'parabol5' : 'tv5',
         hints: S => S.flags.laxenPrat ? ['Parabolen står ute i trädgården.', 'Vrid parabolen tills bilden på tv:n blir klar.', 'Klicka på parabolen i trädgården.'] : ['Tv:n i vardagsrummet brusar konstigt.', 'Någon försöker prata genom tv:n!', 'Klicka på tv:n i vardagsrummet.']},
@@ -7567,11 +7624,11 @@ Content.add(() => {
     ],
     lights: S => ({night: S.flags.julafton ? .5 : 0, power: true, dark: {}}),
     cast: S => {
-      if (S.flags.slut) return [{id: 'leif', room: 'hallen', x: -.55, z: -.75}, {id: 'astrid', room: 'hallen', x: -.2, z: -.95}, {id: 'mormor', room: 'hallen', x: .35, z: -.7}, {id: 'melitta', room: 'hallen', x: .7, z: -.45, face: -.4}, {id: 'mans', room: 'hallen', x: 1.0, z: -.5, face: -.6}];
+      if (S.flags.slut) return [{id: 'leif', room: 'hallen', x: -.55, z: -.75}, {id: 'astrid', room: 'hallen', x: -.2, z: -.95}, {id: 'mormor', room: 'hallen', x: .35, z: -.7}, {id: 'melitta', room: 'hallen', x: .7, z: -.45, face: -.4}, {id: 'mans', room: 'hallen', x: 1.0, z: -.5, face: -.6}, {id: 'jean', room: 'hallen', x: -1.0, z: -.55, face: .5}, {id: 'staffan', room: 'hallen', x: 1.3, z: -.8, face: -.5}];
       const c = [{id: 'astrid', room: 'koket', x: .35, z: -.85}, {id: 'mormor', room: 'musiksalong', x: -.1, z: -.75}, {id: 'melitta', room: 'vardagsrum', x: .1, z: -.8}];
       c.push({id: 'leif', room: S.flags.granInne ? 'hallen' : 'arbetsrum', x: S.flags.granInne ? .45 : -.25, z: -.6});
       if (!S.flags.sprakFri) c.push({id: 'sprak', room: 'grevkammare', x: .45, z: -1.0, pose: 'caged'});
-      else c.push({id: 'sprak', room: S.flags.diodaFri ? 'hallen' : 'tornet', x: S.flags.diodaFri ? 1.05 : .45, z: S.flags.diodaFri ? -.62 : -.8, face: S.flags.diodaFri ? -.5 : 0});
+      else c.push({id: 'sprak', room: S.flags.diodaFri ? 'hallen' : 'tornet', x: S.flags.diodaFri ? 1.05 : .6, z: S.flags.diodaFri ? -.62 : -1.05, face: S.flags.diodaFri ? -.5 : 0});
       if (S.flags.diodaFri) c.push({id: 'dioda', room: 'hallen', x: .72, z: -.68, face: -.4}); else c.push({id: 'dioda', room: 'tornet', x: -.2, z: -.9, pose: 'sit'});
       return c;
     },
@@ -7611,7 +7668,9 @@ Content.add(() => {
       D.sfx('robot');
       await D.say('sprak', 'BIP! Tack! Sprak är fri! Sprak är glad!');
       await D.say('sprak', 'Dioda är i tornkammaren. Hon är så törstig. Två hundra år utan julmust!');
-      await D.walk('sprak', 'tornet', .45, -.8);
+      if (Story.has('nyckeln')) Story.take('nyckeln');
+      if (!Story.has('must4')) { Story.give('must4', 'bur5'); await D.say('sprak', 'Men Sprak sparade en kall julmust i buren! Ta den till Dioda. Bip!'); }
+      await D.walk('sprak', 'tornet', .6, -1.05);
       D.script('sprak', false);
       D.cut(false);
     }});
@@ -7658,6 +7717,7 @@ Content.add(() => {
       const need = Math.max(0, 5 - kulor(S0()) - (S0().flags.kulorPaGranen || 0));
       for (let k = 0; k < need; k++) Story.give('kula', 'julpynt', {quiet: true});
       Story.give('stjarna', 'julpynt');
+      if (Things.get('paket4')) await D.say(who === 'ivar' ? 'lillan' : 'ivar', 'Titta, där borta ligger en julklapp också!');
       await D.say(who, need ? 'Julpyntet! Kulor och en gyllene stjärna.' : 'Julpyntet! Vi har redan kulor, men här är stjärnan till toppen.');
     }});
   Things.def('gran5', {room: 'hallen', x: -.72, y: .6, z: -.95, spot: {r: .35}, name: S => S.goals.gran ? 'Julgranen' : 'Julgranen (pynta den!)', when: S => S.chapter === 5 && !!S.flags.granInne,
@@ -7688,7 +7748,7 @@ Content.add(() => {
       return D.say(who, 'Så fin granen blev!');
     },
     items: {kula: async ctx => Things.defs().gran5.use(ctx), stjarna: async ctx => Things.defs().gran5.use(ctx),
-      paket_leif: ctx => putPresents(ctx.who, ['leif']), paket_astrid: ctx => putPresents(ctx.who, ['astrid']), paket_melitta: ctx => putPresents(ctx.who, ['melitta']), paket_mormor: ctx => putPresents(ctx.who, ['mormor'])}});
+      paket_leif: ctx => Things.defs().gran5.use(ctx), paket_astrid: ctx => Things.defs().gran5.use(ctx), paket_melitta: ctx => Things.defs().gran5.use(ctx), paket_mormor: ctx => Things.defs().gran5.use(ctx)}});
   async function putPresents(who, list) {
     await D.anim(who, 'pickup');
     list.forEach(p => { Story.take('paket_' + p); Story.set('under_' + p); });
@@ -7809,12 +7869,26 @@ Content.add(() => {
     D.sfx('bells'); D.call('slade');
     await D.say('narrator', 'Hör ni? Bjällror! Tomten hittar fram, för parabolen pekar rätt. God jul på Greveholm!');
     D.camBack();
-    ['ivar', 'lillan'].forEach(w => D.anim(w, 'cheer'));
+    // Glada Laxen hoppar av släden med julklappar till de två hjältarna
+    ['nisse', 'jean', 'staffan'].forEach(w => D.script(w, true));
+    D.place('nisse', 'tradgard', .75, -.55, -.5); D.fx('magic', 'nisse'); D.sfx('magic');
+    await D.say('nisse', 'Hohoho! Tomten bad mig lämna två julklappar till två modiga barn!');
+    await UI.bigButton('Öppna din julklapp!', 'Ivar först!', false, 'ivar');
+    D.fx('confetti', 'ivar'); D.sfx('fanfare'); D.anim('ivar', 'cheer');
+    await D.say('ivar', 'Ett teleskop! Nu kan jag se ända till Planutus!');
+    await UI.bigButton('Öppna din julklapp!', 'Nu är det Lillans tur!', false, 'lillan');
+    D.fx('confetti', 'lillan'); D.sfx('fanfare'); D.anim('lillan', 'cheer');
+    await D.say('lillan', 'En liten robot! Den ser ut precis som Sprak! Bip bop!');
+    D.place('jean', 'tradgard', -1.05, -.55, .5); D.place('staffan', 'tradgard', -1.3, -.75, .5); D.fx('magic', 'jean'); D.sfx('ghost');
+    await D.say('jean', 'God jul! Det här är vår första riktiga jul på två hundra år!');
+    await D.say('staffan', 'Och ingen greve som ropar efter sitt pudder. Hurra!');
+    ['ivar', 'lillan', 'jean', 'staffan'].forEach(w => D.anim(w, 'cheer'));
     await D.wait(1500);
-    await D.card('Slut. God jul!', 'Ivar och Lillan löste mysteriet på Greveholm. Greven är borta, spökena är glada och Sprak och Dioda är på väg hem till Planutus. Tack för att ni spelade!', {kicker: 'Mysteriet på Greveholm', art: ['ivar', 'lillan', 'sprak', 'dioda', 'jean', 'staffan']});
+    await D.card('Riddar Ivar och uppfinnaren Lillan', 'löste mysteriet på Greveholm! Greven är borta, spökena firar jul och Sprak och Dioda är på väg hem till Planutus. God jul, och tack för att ni spelade!', {kicker: 'Slut. God jul!', art: ['ivar', 'lillan', 'sprak', 'dioda', 'jean', 'staffan']});
     const f = S0().found;
     await D.card('Kan ni hitta allt?', `Ni har hittat ${(f.pepparkaka || []).length} av 24 pepparkaksgubbar, ${(f.portratt || []).length} av 12 porträtt och ${(f.kuriosa || []).length} av ${KURIOSA.length} konstiga saker. Slottet finns kvar att utforska!`, {kicker: 'Fortsätt leta', art: ['pepparkaka']});
     place.forEach(([w]) => D.script(w, false));
+    D.hide('nisse'); ['nisse', 'jean', 'staffan'].forEach(w => D.script(w, false));
     Story.done('julafton');
     D.call('tornTillbaka');
     D.cut(false);
@@ -7844,7 +7918,9 @@ Content.add(() => {
     astrid: ['God jul, mina hjärtan! Ta en pepparkaka till.', 'Vilken jul! Nästa år firar vi här igen.'],
     mormor: ['Det här var den bästa julen på länge.', 'Prinsessan från rymden blir en bra historia att berätta för mina väninnor.'],
     melitta: ['Måns gav mig en bild. Jag ska rama in den.', 'God jul! Och tack för att ni fixade tv:n.'],
-    mans: ['God jul! Nästa år kommer tidningen i tid. Kanske.', 'Hoppas raketen kom fram till Planutus.']};
+    mans: ['God jul! Nästa år kommer tidningen i tid. Kanske.', 'Hoppas raketen kom fram till Planutus.'],
+    jean: ['God jul! Äntligen en jul utan Greven.', 'Pardon, har någon sett mitt … nej, jag har inget pudder. Skämt!'],
+    staffan: ['God jul! Jag har hängt mössan på pilen igen.', 'Två hundra år utan jul. Nu är det äntligen fest!']};
   Object.keys(SLUT).forEach(p => Things.def('slut_' + p, {room: S => S.flags.slut ? 'hallen' : null, actor: p, name: CHARS[p].name, when: S => !!S.flags.slut,
     use: async ({who}) => { await D.say(p, pick(SLUT[p])); if (Math.random() < .5) D.anim(p, 'wave'); }}));
   Things.def('npc_astrid5', {room: S => S.chapter === 5 && !S.flags.slut ? 'koket' : null, actor: 'astrid', name: 'Mamma Astrid', use: async () => D.say('astrid', pick(['Snart är det julafton! Jag gör skinka och Janssons frestelse.', 'Julmust i kylskåpet? Ta så mycket ni vill i dag. Det är jul!']))});
@@ -7997,7 +8073,7 @@ const Stairs = (() => {
     ready = true;
     LINKS.forEach(l => {
       const o = l[3] || {};
-      if (l[2] !== 'stair' || !o.t) return;
+      if ((l[2] !== 'stair' && l[2] !== 'secret') || !o.t) return;
       [l[0], l[1]].forEach(room => {
         const key = room + '_' + o.t + (o.side || '');
         (groups[key] = groups[key] || {room, key, t: o.t, side: o.side, links: []}).links.push(l);
@@ -10696,12 +10772,16 @@ const Net = (() => {
     switch (m.t) {
       // lobbyn
       case 'hello': {
-        const S = (Store.get('saveCoop', null) && Store.get('saveCoop', null).me === myChar) ? Store.get('saveCoop', null) : null;
+        // det sparade äventyret (oavsett vem som spelade vem förra gången), och ensamspelet som ett alternativ
+        const S = Store.get('saveCoop', null), solo = Store.get('save', null);
         $('hostStatus').textContent = `Den andra datorn är med! Den spelar ${CHARS[otherChar].name}.`;
         $('hostChar').innerHTML = '';
         const go = (fresh) => { const s = fresh ? Story.fresh() : S; s.me = myChar; s.coop = true; send({t: 'start', S: s, me: otherChar}); Menus.begin(s, {role: 'host', me: myChar, fresh}); $('netTag').textContent = 'Två datorer: ' + CHARS[myChar].name + ' och ' + CHARS[otherChar].name; $('netTag').hidden = false; };
-        if (S) $('hostChar').append(h('button', {class: 'big', type: 'button', onclick: () => go(false)}, 'Fortsätt äventyret'), ' ', h('button', {class: 'big alt', type: 'button', onclick: () => go(true)}, 'Nytt äventyr'));
-        else $('hostChar').append(h('button', {class: 'big', type: 'button', onclick: () => go(true)}, 'Börja äventyret!'));
+        const fresh = () => { if (!S) return go(true); UI.choose('Börja om från början? Ert sparade äventyr försvinner.', [{label: 'Ja, börja om', icon: '✓', value: 1}, {label: 'Nej, fortsätt', icon: '↩', value: 0}]).then(v => v ? go(true) : go(false)); };
+        const fromSolo = () => { const s = JSON.parse(JSON.stringify(solo)); s.me = myChar; s.coop = true; send({t: 'start', S: s, me: otherChar}); Menus.begin(s, {role: 'host', me: myChar, fresh: false}); $('netTag').textContent = 'Två datorer: ' + CHARS[myChar].name + ' och ' + CHARS[otherChar].name; $('netTag').hidden = false; };
+        if (S) $('hostChar').append(h('button', {class: 'big', type: 'button', onclick: () => go(false)}, `Fortsätt äventyret (kapitel ${S.chapter})`), ' ');
+        if (solo && solo.chapter > (S ? S.chapter : 1)) $('hostChar').append(h('button', {class: 'big alt', type: 'button', onclick: fromSolo}, `Fortsätt från ensamspelet (kapitel ${solo.chapter})`), ' ');
+        $('hostChar').append(h('button', {class: S ? 'big alt' : 'big', type: 'button', onclick: fresh}, S ? 'Nytt äventyr' : 'Börja äventyret!'));
         Sound.play('fanfare');
         break;
       }

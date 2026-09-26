@@ -10774,16 +10774,35 @@ const Net = (() => {
     c.on('open', () => {
       if (N.role === 'guest') { $('joinStatus').textContent = 'Ansluten! Väntar på den andra datorn …'; send({t: 'hello'}); }
     });
-    c.on('data', m => { try { onMsg(m); } catch (e) { console.error(e); } });
+    c.on('data', m => { lastMsg = performance.now(); try { onMsg(m); } catch (e) { console.error(e); } });
     c.on('close', () => lost());
     c.on('error', () => lost());
   }
+  // hjärtslag: båda datorerna skickar ett litet meddelande varannan sekund. Hörs inget på femton sekunder är den andra borta.
+  let lastMsg = 0;
+  setInterval(() => {
+    if (!conn || !conn.open) return;
+    send({t: 'hb'});
+    if (lastMsg && performance.now() - lastMsg > 15000) lost();
+  }, 2000);
   function lost() {
     if (!conn) return;
+    lastMsg = 0;
     conn = null;
     if (Game.running()) {
       if (N.role === 'host') { N.role = 'solo'; Game.setRole('solo'); UI.chars(Game.me(), 'solo'); UI.toast('Den andra datorn försvann. Du kan spela vidare själv.'); $('netTag').hidden = true; }
-      else { N.role = 'solo'; UI.toast('Anslutningen bröts.'); setTimeout(() => { Game.stop(); Menus.title(); }, 1500); }
+      else {
+        // gästen: spela vidare ensam från samma ställe (det blir den här datorns eget sparade äventyr)
+        N.role = 'solo';
+        const s = Story.S() ? JSON.parse(JSON.stringify(Story.S())) : null;
+        UI.toast('Anslutningen bröts.');
+        setTimeout(async () => {
+          const v = s ? await UI.choose('Den andra datorn försvann. Vill du spela vidare ensam?', [{label: 'Ja, spela vidare ensam', icon: '✓', value: 1}, {label: 'Nej, till startsidan', icon: '↩', value: 0}]) : 0;
+          Game.stop();
+          if (v) { s.coop = false; s.solo = true; s.me = myChar; $('netTag').hidden = true; Menus.begin(s, {role: 'solo', me: myChar}); }
+          else Menus.title();
+        }, 900);
+      }
     }
   }
   function onMsg(m) {
@@ -10803,6 +10822,7 @@ const Net = (() => {
         Sound.play('fanfare');
         break;
       }
+      case 'hb': break;
       case 'full': $('joinStatus').textContent = 'Den datorn spelar redan med någon annan.'; break;
       case 'start': myChar = m.me; otherChar = m.me === 'ivar' ? 'lillan' : 'ivar'; Menus.begin(m.S, {role: 'guest', me: m.me, fresh: false}); $('netTag').textContent = 'Två datorer: ' + CHARS[myChar].name + ' och ' + CHARS[otherChar].name; $('netTag').hidden = false; break;
       // spelet

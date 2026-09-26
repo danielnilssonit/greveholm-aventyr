@@ -129,9 +129,11 @@ button { font-family: inherit; }
 
 /* ---------- Prat, etiketter och pekaren ---------- */
 .fxLayer { position: absolute; inset: 0; pointer-events: none; z-index: 8; }
-.fxLayer .roomLabel { pointer-events: auto; position: absolute; left: 0; top: 0; appearance: none; border: 2px solid var(--gold2); background: rgba(22, 16, 44, .88); color: #fff4d6; border-radius: .8em; padding: .35em .9em; font-weight: 700; font-size: 1em; cursor: pointer; display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.fxLayer .roomLabel { pointer-events: auto; position: absolute; left: 0; top: 0; appearance: none; border: 2px solid var(--gold2); background: rgba(22, 16, 44, .88); color: #fff4d6; border-radius: .8em; padding: .3em .6em; font-weight: 700; font-size: .92em; cursor: pointer; display: flex; flex-direction: column; align-items: center; line-height: 1.1; white-space: nowrap; }
 .fxLayer .roomLabel small { font-size: .7em; opacity: .8; }
 .fxLayer .roomLabel.here { border-color: #9fd8ff; }
+.fxLayer .roomLabel.target { border-color: #ffc93a; animation: roomTarget .8s ease-in-out infinite; z-index: 5; font-size: 1.05em; }
+@keyframes roomTarget { 0%, 100% { background: rgba(22, 16, 44, .88); box-shadow: 0 0 0 0 rgba(255, 201, 58, 0); } 50% { background: rgba(120, 84, 10, .95); box-shadow: 0 0 1.2em .3em rgba(255, 201, 58, .85); } }
 .fxLayer .roomLabel:hover { background: rgba(58, 45, 106, .95); transform: scale(1.06); }
 .flyIcon { position: absolute; left: 0; top: 0; width: 3.4em; height: 3.4em; filter: drop-shadow(0 .3em .6em rgba(0, 0, 0, .5)); }
 .flyIcon img, .flyIcon svg { width: 100%; height: 100%; object-fit: contain; }
@@ -3413,7 +3415,7 @@ const Fx = (() => {
       }
       p.needsUpdate = true;
     }
-    sparks.forEach(sp => { const w = Math.sin(t * 2.2 + sp.ph), k = Math.max(0, w) * 1.1; sp.spr.scale.setScalar(sp.size * (.25 + k)); sp.spr.material.opacity = .25 + k * .7; sp.spr.material.rotation = t * .8 + sp.ph; });
+    sparks.forEach(sp => { const w = Math.sin(t * 2.2 + sp.ph), k = Math.max(0, w) * 1.1; sp.spr.scale.setScalar(sp.size * (.6 + k * .7)); sp.spr.material.opacity = .5 + k * .45; sp.spr.material.rotation = t * .8 + sp.ph; });
     labels.forEach(l => {
       const p = S3.project(l.pos);
       l.el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
@@ -3423,20 +3425,21 @@ const Fx = (() => {
 
   /* ---------- Rummen man kan gå till ---------- */
   // Kartan: rummen lyser och får en etikett som går att klicka på (rooms: lista med rum)
-  F.rooms = (rooms, onPick, here) => {
+  F.rooms = (rooms, onPick, here, target) => {
     F.clearRooms();
     rooms.forEach(id => {
-      const b = Castle.box(id), c = Castle.center(id);
+      const b = Castle.box(id), c = Castle.center(id), tg = id === target;
       const w = b.out ? 2 : b.x1 - b.x0, hh = b.out ? 1.5 : (b.attic ? 1.15 + 1.45 : b.y1 - b.y0);
-      const glow = new THREE.Mesh(new THREE.PlaneGeometry(w, hh), new THREE.MeshBasicMaterial({color: id === here ? 0x9fd8ff : 0xffd978, transparent: true, opacity: .16, depthWrite: false, side: THREE.DoubleSide}));
+      const glow = new THREE.Mesh(new THREE.PlaneGeometry(w, hh), new THREE.MeshBasicMaterial({color: id === here ? 0x9fd8ff : tg ? 0xffc93a : 0xffd978, transparent: true, opacity: .16, depthWrite: false, side: THREE.DoubleSide}));
+      glow.userData.target = tg;
       glow.position.set(c.x, b.y0 + hh / 2, .12);
       glow.renderOrder = 4;
       glow.userData.room = id;
       roomGroup.add(glow);
       const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(w - .04, hh - .04)), new THREE.LineBasicMaterial({color: id === here ? 0x9fd8ff : 0xffe28a, transparent: true, opacity: .9}));
       frame.position.copy(glow.position); frame.position.z += .005; roomGroup.add(frame);
-      const lab = h('button', {class: 'roomLabel' + (id === here ? ' here' : ''), type: 'button', dataset: {room: id}, onclick: e => { e.stopPropagation(); onPick(id); }},
-        h('b', null, ROOMS[id].name), id === here ? h('small', null, 'här är du') : null);
+      const lab = h('button', {class: 'roomLabel' + (id === here ? ' here' : '') + (tg ? ' target' : ''), type: 'button', dataset: {room: id}, onclick: e => { e.stopPropagation(); onPick(id); }},
+        h('b', null, (tg ? '⭐ ' : '') + ROOMS[id].name), id === here ? h('small', null, 'här är du') : null);
       layer.appendChild(lab);
       labels.push({el: lab, pos: new THREE.Vector3(c.x, b.y0 + Math.min(hh, 1.5) * .6, .15), room: id});
       glow.userData.t0 = Math.random() * 6;
@@ -3448,7 +3451,7 @@ const Fx = (() => {
     for (let i = labels.length - 1; i >= 0; i--) if (labels[i].room) { labels[i].el.remove(); labels.splice(i, 1); }
   };
   F.roomLabels = () => labels.filter(l => l.room).map(l => l.el);
-  Bus.on('frame', (dt, t) => { if (roomGroup) roomGroup.children.forEach(o => { if (o.material && o.material.opacity < .5) o.material.opacity = .12 + Math.sin(t * 3 + (o.userData.t0 || 0)) * .06; }); });
+  Bus.on('frame', (dt, t) => { if (roomGroup) roomGroup.children.forEach(o => { if (!o.material) return; if (o.userData.target) o.material.opacity = .3 + Math.sin(t * 6) * .22; else if (o.material.opacity < .5) o.material.opacity = .12 + Math.sin(t * 3 + (o.userData.t0 || 0)) * .06; }); });
 
   /* ---------- Damm, glitter och konfetti ---------- */
   F.burst = (pos, {n = 18, color = 0xfff2c8, spread = .5, up = .6, ms = 900, size = .09} = {}) => {
@@ -3493,8 +3496,8 @@ const Fx = (() => {
   F.sparkTex = () => sparkTex;
   // Ett glitter som blinkar vid en sak (ledtråd för de minsta): {remove()}
   F.twinkle = (pos, color = 0xfff2c8, size = .16) => {
-    const spr = new THREE.Sprite(new THREE.SpriteMaterial({map: sparkTex, color, transparent: true, depthWrite: false, opacity: .9}));
-    spr.position.copy(pos); spr.renderOrder = 5; spotGroup.add(spr);
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({map: sparkTex, color, transparent: true, depthWrite: false, depthTest: false, opacity: .9}));
+    spr.position.copy(pos); spr.renderOrder = 10; spotGroup.add(spr);
     const sp = {spr, size, ph: Math.random() * 6};
     sparks.push(sp);
     return {spr, remove() { const i = sparks.indexOf(sp); if (i >= 0) sparks.splice(i, 1); spr.parent && spr.parent.remove(spr); }};
@@ -4163,9 +4166,9 @@ const Things = (() => {
       if (L && d.onRefresh) try { d.onRefresh(L, S); } catch (e) { console.error(e); }
       if (L) {
         const glow = Settings.sparkle && d.sparkle && val(d.sparkle, S, d);
-        if (glow && !L.tw) L.tw = Fx.twinkle(T.pos(d.id).add(new THREE.Vector3(0, .06, .06)), 0xfff2c8, .15);
+        if (glow && !L.tw) L.tw = Fx.twinkle(T.sparkPos(d.id), 0xfff2c8, .15);
         else if (!glow && L.tw) { L.tw.remove(); L.tw = null; }
-        if (L.tw) L.tw.spr.position.copy(T.pos(d.id).add(new THREE.Vector3(0, .06, .06)));
+        if (L.tw) L.tw.spr.position.copy(T.sparkPos(d.id));
       }
     });
   };
@@ -4184,6 +4187,41 @@ const Things = (() => {
     return c;
   };
   T.room = id => live[id] ? live[id].room : null;
+  // Var glittret ska sitta: ovanpå och en bit framför saken (inte inne i den)
+  T.sparkPos = id => {
+    const L = live[id]; if (!L) return new THREE.Vector3();
+    if (L.actor) return T.pos(id).add(new THREE.Vector3(0, L.actor.height * .5, .05));
+    if (L.d.spot || L.obj.userData.proxy) return T.pos(id).add(new THREE.Vector3(0, .1, .06));
+    tmpBox.setFromObject(L.obj);
+    const c = tmpBox.getCenter(new THREE.Vector3());
+    return new THREE.Vector3(c.x, Math.min(tmpBox.max.y + .07, World.floorY(L.room) + 1.45), tmpBox.max.z + .05);
+  };
+  // Nästa steg i berättelsen: ett större guldglitter och en pil som guppar ovanför (id eller null)
+  let goalMark = null, arrowTex = null;
+  T.goal = id => {
+    if (id && !live[id]) id = null;
+    if (goalMark && goalMark.id === id) return;
+    if (goalMark) { goalMark.tw.remove(); if (goalMark.arrow.parent) goalMark.arrow.parent.remove(goalMark.arrow); goalMark = null; }
+    if (!id) return;
+    if (!arrowTex) {
+      const c = document.createElement('canvas'); c.width = 64; c.height = 96; const g = c.getContext('2d');
+      g.beginPath(); g.moveTo(32, 90); g.lineTo(60, 52); g.lineTo(42, 52); g.lineTo(42, 6); g.lineTo(22, 6); g.lineTo(22, 52); g.lineTo(4, 52); g.closePath();
+      g.fillStyle = '#ffc93a'; g.fill(); g.lineWidth = 5; g.strokeStyle = '#2b1d14'; g.stroke();
+      arrowTex = S3.tex(c, true);
+    }
+    const arrow = new THREE.Sprite(new THREE.SpriteMaterial({map: arrowTex, transparent: true, depthWrite: false, depthTest: false}));
+    arrow.scale.set(.1, .15, 1); arrow.renderOrder = 11; S3.root().add(arrow);
+    goalMark = {id, arrow, tw: Fx.twinkle(T.sparkPos(id), 0xffd75a, .26)};
+  };
+  T.goalId = () => goalMark ? goalMark.id : null;
+  Bus.on('frame', (dt, t) => {
+    if (!goalMark) return;
+    if (!live[goalMark.id]) { T.goal(null); return; }
+    const p = T.sparkPos(goalMark.id);
+    goalMark.tw.spr.position.copy(p);
+    goalMark.arrow.position.set(p.x, p.y + .17 + Math.abs(Math.sin(t * 3.2)) * .06, p.z);
+    goalMark.arrow.visible = goalMark.tw.spr.visible = !Game.inCut() && !Game.mapMode();
+  });
   // Var figuren ska stå för att använda saken
   T.standPoint = (id, actor) => {
     const L = live[id]; if (!L) return null;
@@ -4310,6 +4348,8 @@ const Input = (() => {
     if (worldHit) {
       const p = worldHit.point, room = World.roomAt(p.x, p.y + .05, p.z);
       if (room) { out.room = room; out.point = {x: p.x, z: Math.min(p.z, -.12)}; }
+      // trappstegen i hörntornen ligger utanför rummen: klicket går till tornets trappa
+      else if (!out.thing && !out.actor && Math.abs(p.x) > 5.9 && typeof Stairs !== 'undefined') { const s = Stairs.atTurret(p.x, p.y); if (s) out.thing = s; }
     }
     return out;
   };
@@ -4863,6 +4903,13 @@ const Story = (() => {
   T.done = id => { if (S.goals[id]) return; S.goals[id] = 1; S.hint = {}; T.progress(); D.goalDone(id); T.changed(); };
   T.isDone = id => !!(S && S.goals[id]);
   T.found = (kind, id) => { const l = S.found[kind] || (S.found[kind] = []); if (l.includes(id)) return false; l.push(id); T.progress(); T.changed(); return true; };
+  T.goalTarget = () => {
+    if (!S) return null;
+    const g = T.visibleGoals().find(x => !x.done && !x.optional);
+    if (!g) return null;
+    const t = typeof g.target === 'function' ? g.target(S) : g.target;
+    return t && Things.get(t) ? t : null;
+  };
   T.visibleGoals = () => {
     const ch = Chapters.get(S.chapter);
     return ch ? (ch.goals || []).filter(g => !g.show || g.show(S)).map(g => Object.assign({}, g, {done: !!S.goals[g.id], text: typeof g.text === 'function' ? g.text(S) : g.text, icon: typeof g.icon === 'function' ? g.icon(S) : g.icon})) : [];
@@ -4907,7 +4954,7 @@ const Story = (() => {
     try {
       // rätt sak i väskan används av sig själv (för dem som inte vet att man ska välja saken först)
       if (!item && d.items && !(needOf(d, ctx) && needOf(d, ctx) !== who)) {
-        const auto = d.auto ? val(d.auto, ctx) : !d.use && !d.pickup ? Object.keys(d.items).find(k => k !== '*' && !TOOLS[k] && T.has(k)) : null;
+        const auto = d.auto ? val(d.auto, ctx) : (!d.use && !d.pickup) || T.goalTarget() === id ? Object.keys(d.items).find(k => k !== '*' && !TOOLS[k] && T.has(k)) : null;
         if (auto && T.has(auto) && d.items[auto]) { item = auto; ctx.item = auto; }
       }
       if (item && TOOLS[item] && TOOLS[item] !== who) {
@@ -5134,6 +5181,7 @@ const Game = (() => {
   G.start = async (S, opts = {}) => {
     Flow.cancelAll(); D.reset();
     Story.use(S);
+    if (typeof Stairs !== 'undefined') Stairs.setup();
     role = opts.role || 'solo';
     me = opts.me || S.me || 'ivar';
     S.me = me; S.solo = role === 'solo';
@@ -5153,7 +5201,8 @@ const Game = (() => {
     Story.changed(true);
     const ch = Chapters.get(S.chapter);
     if (ch) UI.chapterName(S.chapter, ch.title);
-    Sound.mood(ch && ch.music ? ch.music(S) : 'slott');
+    // ett nytt äventyr: temat från startsidan fortsätter in i introt (introt väljer själv musiken)
+    if (!(opts.fresh && role !== 'guest')) Sound.mood(ch && ch.music ? ch.music(S) : 'slott');
     if (opts.fresh && role !== 'guest') await Story.startChapter(S.chapter);
     else if (role !== 'guest' && !opts.quiet) {
       if (ch && ch.resume) await ch.resume(S);
@@ -5207,6 +5256,7 @@ const Game = (() => {
     }
   };
   G.walkTo = async (room, x, z) => {
+    if (mapMode) G.map(false);
     const a = Actors.get(me);
     const p = World.nearestFree(room, x, z);
     UI.marker(new THREE.Vector3(p.x, World.floorY(room) + .01, p.z));
@@ -5258,7 +5308,8 @@ const Game = (() => {
   G.interact = async (id, item) => {
     const a = Actors.get(me), L = Things.get(id);
     if (!L || busy[me]) return;
-    if (L.d.exit) return G.useExit(L.d.exit);
+    if (mapMode) G.map(false);
+    if (L.d.exit) { const ex = typeof L.d.exit === 'function' ? L.d.exit(Story.S()) : L.d.exit; return ex && ex.length ? G.useExit(ex) : D.say(me, Story.whyBlocked(L.room)); }
     busy[me] = true;
     if (item) { G.item = null; UI.itemCursor(null); }
     try {
@@ -5345,14 +5396,14 @@ const Game = (() => {
   G.switchChar = () => G.switchTo(G.other());
 
   /* ---------- Kartan: hela dockskåpet ---------- */
-  G.map = on => {
+  G.map = (on, target) => {
     if (on === mapMode) return;
     if (on && (!running || cut)) return;
     mapMode = on;
     if (on) {
       S3.cam.overview(700);
       const S = Story.S(), rooms = ROOM_IDS.filter(r => ROOMS[r].kind !== 'secret' || S.flags.lonndorr);
-      Fx.rooms(rooms, r => { G.map(false); G.jump(r); }, Actors.get(me).room);
+      Fx.rooms(rooms, r => { G.map(false); G.jump(r); }, Actors.get(me).room, target);
       UI.mapMode(true);
     } else { Fx.clearRooms(); UI.mapMode(false); }
   };
@@ -5371,12 +5422,21 @@ const Game = (() => {
     }
     const tgt = h.target && Things.get(h.target) ? h.target : null;
     const far = tgt && Things.room(tgt) !== Actors.get(me).room;
-    if (h.level >= 1 && far) D.flashRoom(Things.room(tgt));
-    await D.say(speaker, h.text + (h.level === 1 && far ? ' Titta, i ' + ROOMS[Things.room(tgt)].name.toLowerCase() + '!' : ''));
-    if (h.level >= 2 && tgt) { D.trail(me, tgt); UI.tip('Följ glittret!'); }
+    if (tgt) showGoal = tgt;
+    await D.say(speaker, h.text);
     if (speaker === ghost) { Actors.get(ghost).show(false); Actors.get(ghost).hint = false; }
+    // andra gången: kartan öppnas och rummet blinkar (man kan klicka på det och åka dit)
+    if (h.level === 1 && far && !cut) {
+      G.map(true, Things.room(tgt));
+      await D.say(G.other(), 'Klicka på rummet som blinkar!');
+    }
+    // tredje gången: figuren går dit, och barnet klickar själv på saken med guldpilen
+    else if (h.level >= 2 && tgt && !cut) {
+      await D.say(G.other(), far ? 'Följ med, jag visar vägen!' : 'Titta, där! Där pilen är.');
+      if (far && !busy[me]) { const sp = Things.standPoint(tgt, Actors.get(me)); if (sp) await G.walkTo(Things.room(tgt), sp.x, sp.z); }
+    }
   };
-  let lastAuto = performance.now();
+  let lastAuto = performance.now(), showGoal = null, goalT = null, goalSince = 0, goalCheck = 0;
   // Q: kalla på syskonet (ensam följer det med igen, tillsammans får den andra en pil)
   G.callOther = () => {
     if (!running || cut) return;
@@ -5448,7 +5508,15 @@ const Game = (() => {
     } else stepT = .05;
     // efter en och en halv minut utan framsteg kommer en ledtråd av sig själv
     const now = performance.now();
-    if (!cut && !D.talking() && !busy[me] && Settings.autoHints !== false && now - Story.lastProgress > 90000 && now - lastAuto > 90000 && role !== 'guest') G.hint(true);
+    if (!cut && !D.talking() && !busy[me] && !mapMode && Settings.autoHints !== false && now - Story.lastProgress > 45000 && now - lastAuto > 45000 && role !== 'guest') G.hint(true);
+    // nästa steg får en guldpil när man har letat en stund (eller direkt efter en ledtråd)
+    goalCheck -= dt;
+    if (goalCheck <= 0) {
+      goalCheck = .5;
+      const tg = Story.goalTarget();
+      if (tg !== goalT) { goalT = tg; goalSince = now; if (showGoal !== tg) showGoal = null; }
+      Things.goal(tg && (showGoal === tg || now - goalSince > 20000) ? tg : null);
+    }
     // Lillans voltmeter piper fortare ju närmare en hemlighet hon är
     voltT -= dt;
     if (me === 'lillan' && !cut) {
@@ -5737,6 +5805,7 @@ Content.add(() => {
       await D.say('leif', 'Spöken finns inte, Melitta. Allt har en naturlig förklaring.');
       D.sfx('thunder'); D.call('flash', 1.2); D.shake(.06);
       Story.set('morkt'); Story.changed(true);
+      D.mood('spok');
       await D.wait(700);
       D.anim('ivar', 'scared'); D.anim('lillan', 'scared'); D.anim('melitta', 'scared');
       await D.say('lillan', 'Strömmen gick!');
@@ -6220,11 +6289,11 @@ Content.add(() => {
   /* ---------- Huvudet i skorstenen (vardagsrummet) ---------- */
   Things.def('hink_stall', {room: 'stallet', x: .3, z: -.45, make: () => Props.make('hink'), model: 'i_hink', name: 'En hink', when: S => !S.flags.hinkTagen, pickup: 'hink',
     after: async ({who}) => { Story.set('hinkTagen'); await D.say(who, 'En hink! Den kan vi bära vatten i.'); }});
-  Things.def('vattenho', {room: 'stallet', furniture: 'm_vattenho', name: 'Vattenhon',
+  Things.def('vattenho', {room: 'stallet', furniture: 'm_vattenho', name: 'Vattenhon', auto: () => Story.has('hink') && 'hink', sparkle: S => S.chapter === 2 && Story.has('hink') && !S.flags.eldslackt,
     use: async ({who}) => D.say(who, pick(['Här drack hästarna vatten förr i tiden.', 'Vattnet är iskallt!'])),
     items: {hink: async ({who}) => { await D.anim(who, 'pickup'); D.sfx('splash'); Story.swap('hink', 'hink_vatten'); await D.say(who, 'Plask! Nu är hinken full med vatten.'); }}});
-  Things.def('spis', {room: 'vardagsrum', furniture: 'm_spisen', name: S => S.flags.eldslackt ? 'Öppna spisen' : 'Öppna spisen (det brinner)', auto: S => S.chapter === 2 && !S.flags.eldslackt && 'hink_vatten',
-    sparkle: S => !S.flags.fick_sprak_huvud && (Story.has('hink_vatten') || S.flags.eldslackt),
+  Things.def('spis', {room: 'vardagsrum', furniture: 'm_spisen', name: S => S.flags.eldslackt ? 'Öppna spisen' : 'Öppna spisen (det brinner)', auto: S => S.chapter === 2 && !S.flags.eldslackt ? 'hink_vatten' : S.chapter === 4 && Story.has('hink_is') ? 'hink_is' : null,
+    sparkle: S => (!S.flags.fick_sprak_huvud && (Story.has('hink_vatten') || S.flags.eldslackt)) || (S.chapter === 4 && Story.has('hink_is')),
     onRefresh: (L, S) => { const e = Furniture.node('vardagsrum', 'm_spisen', 'eld'); if (e) e.visible = !S.flags.eldslackt || S.chapter >= 3; },
     need: S => S.flags.eldslackt && !S.flags.fick_sprak_huvud ? 'ivar' : null, needText: 'Något sitter fast uppe i skorstenen. Ivar, peta med svärdet!',
     use: async ({who}) => {
@@ -7667,6 +7736,93 @@ Content.add(() => {
   // ljuskronor och lampor
   ['matsalen', 'hallen', 'musiksalong', 'galleriet', 'bibliotek'].forEach(r => F('f_krona_' + r, r, 'm_ljuskrona', 'Ljuskronan', ['En ljuskrona med kristaller. Den klirrar.', 'Hundra ljus. Eller åtminstone tjugo.'], {when: S => !(r === 'matsalen' && S.chapter === 1 && !S.goals.nycklar)}));
 });
+
+/* ---- 10c7-trappor.js ---- */
+/* ================= Trapporna: klickbara skyltar vid varje trappa ================= */
+// Varje trappa får en svävande skylt i rummet: ⬆ upp, ⬇ ner eller båda. Skylten är en sak (Things) som läses upp när man
+// pekar på den. Ett klick går dit, och finns två vägar (upp och ner) får man välja med bilder. Klickar man direkt på
+// trappstegen i hörntornen eller på stora trappan i hallen händer samma sak. Skyltarna syns inte i filmscenerna.
+const Stairs = (() => {
+  const St = {};
+  const tex = {}, groups = {};
+  let ready = false;
+  function texFor(kind) {
+    if (tex[kind]) return tex[kind];
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    g.beginPath(); g.arc(64, 64, 58, 0, Math.PI * 2); g.fillStyle = 'rgba(22, 16, 44, .86)'; g.fill();
+    g.lineWidth = 8; g.strokeStyle = '#f5d57a'; g.stroke();
+    const arrow = (x, up, s) => {
+      g.save(); g.translate(x, 64); g.scale(s, s); if (!up) g.rotate(Math.PI);
+      g.beginPath(); g.moveTo(0, -36); g.lineTo(25, -5); g.lineTo(9, -5); g.lineTo(9, 34); g.lineTo(-9, 34); g.lineTo(-9, -5); g.lineTo(-25, -5); g.closePath();
+      g.fillStyle = '#fff4d6'; g.fill(); g.restore();
+    };
+    if (kind === 'both') { arrow(45, true, .76); arrow(83, false, .76); } else arrow(64, kind === 'up', 1);
+    return (tex[kind] = S3.tex(c, true));
+  }
+  const other = (l, room) => l[0] === room ? l[1] : l[0];
+  const floorOf = r => Castle.box(r).floor;
+  const openLinks = G => G.links.filter(l => World.linkOpen(l));
+  function kindOf(G) {
+    const open = openLinks(G);
+    const up = open.some(l => floorOf(other(l, G.room)) > floorOf(G.room)), down = open.some(l => floorOf(other(l, G.room)) < floorOf(G.room));
+    return up && down ? 'both' : up ? 'up' : down ? 'down' : null;
+  }
+  const nameOf = G => 'Trappan ' + openLinks(G).map(l => { const to = other(l, G.room); return (floorOf(to) > floorOf(G.room) ? 'upp till ' : 'ner till ') + ROOMS[to].name.toLowerCase(); }).join(' och ');
+  St.setup = () => {
+    if (ready) return;
+    ready = true;
+    LINKS.forEach(l => {
+      const o = l[3] || {};
+      if (l[2] !== 'stair' || !o.t) return;
+      [l[0], l[1]].forEach(room => {
+        const key = room + '_' + o.t + (o.side || '');
+        (groups[key] = groups[key] || {room, key, t: o.t, side: o.side, links: []}).links.push(l);
+      });
+    });
+    Object.values(groups).forEach(G => {
+      const pts = G.links.map(l => { const r = Castle.route(G.room, other(l, G.room), null).filter(Boolean); return r[0] || Castle.center(G.room); });
+      G.x = pts.reduce((s, p) => s + p.x, 0) / pts.length; G.z = pts.reduce((s, p) => s + p.z, 0) / pts.length;
+      let y = .64;
+      // stora trappan: skylten sitter över de nedersta stegen (inte framför dörren bredvid)
+      const o = G.links[0][3] || {};
+      if (G.t === 'grand' && floorOf(other(G.links[0], G.room)) > floorOf(G.room)) { G.x = o.x0 + (o.x1 > o.x0 ? .28 : -.28); G.z = o.z + .1; y = .82; }
+      Things.def('trappa_' + G.key, {room: G.room, x: G.x - Castle.center(G.room).x, y, z: Math.min(-.2, G.z), spot: {r: .15}, stair: G,
+        make: () => { const s = new THREE.Sprite(new THREE.SpriteMaterial({map: texFor(kindOf(G) || 'up'), transparent: true, depthWrite: false, depthTest: false})); s.scale.setScalar(.19); s.renderOrder = 9; const g = new THREE.Group(); g.add(s); return g; },
+        when: () => !!kindOf(G),
+        onSpawn: L => { L.baseY = L.obj.position.y; L.kind = kindOf(G); },
+        onRefresh: L => { const k = kindOf(G), s = L.obj.children[0]; if (k && k !== L.kind && s) { L.kind = k; s.material.map = texFor(k); s.material.needsUpdate = true; } },
+        name: () => nameOf(G),
+        exit: () => World.exits(G.room).filter(e => G.links.includes(e.link))});
+    });
+    // stora trappan i hallen är klickbar i sig: upp från hallen, ner från galleriet
+    const grand = Object.values(groups).find(G => G.t === 'grand' && G.room === 'hallen');
+    if (grand) Things.def('trappa_stora', {room: 'hallen', furniture: 'm_storatrappan', name: () => Actors.get(Game.me()).room === 'galleriet' ? 'Stora trappan ner till hallen' : 'Stora trappan upp till galleriet',
+      exit: () => { const r = Actors.get(Game.me()).room === 'galleriet' ? 'galleriet' : 'hallen'; return World.exits(r).filter(e => e.link[3] && e.link[3].t === 'grand'); }});
+  };
+  // Klick i ett hörntorn (utanför rummen): skylten för tornets trappa på den våningen man klickade på
+  St.atTurret = (x, y) => {
+    const side = x < 0 ? 'L' : 'R';
+    let best = null, bd = 9;
+    Object.values(groups).forEach(G => {
+      if (G.t !== 'turret' || G.side !== side || !Things.get('trappa_' + G.key)) return;
+      const d = Math.abs(World.floorY(G.room) + .5 - y);
+      if (d < bd) { bd = d; best = 'trappa_' + G.key; }
+    });
+    return best;
+  };
+  // skyltarna guppar lite och syns inte i filmscener eller på kartan
+  Bus.on('frame', (dt, t) => {
+    if (!ready) return;
+    const hide = !Game.running() || Game.inCut() || Game.mapMode();
+    Object.values(Things.live()).forEach(L => {
+      if (!L.d.stair || L.baseY == null) return;
+      L.obj.visible = !hide;
+      L.obj.position.y = L.baseY + Math.sin(t * 2.4 + L.obj.id) * .018;
+    });
+  });
+  return St;
+})();
 
 /* ---- 10d-mini.js ---- */
 /* ================= Minispelen: nio små spel på en egen 2D-duk ================= */

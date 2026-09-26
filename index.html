@@ -193,6 +193,7 @@ button { font-family: inherit; }
 .chooseBox h2 { margin: 0; font-family: var(--title2); color: var(--gold2); }
 #chooseList { display: flex; flex-direction: column; gap: .6em; width: 100%; }
 #chooseList .big { width: 100%; justify-content: flex-start; }
+#chooseList.grid { display: grid; grid-template-columns: 1fr 1fr; }
 #chooseList .big .ci { font-size: 1.3em; width: 1.4em; text-align: center; }
 #chooseList .big .ci.img { width: 2.6em; height: 2.6em; font-size: 1em; }
 #chooseList .big .ci.img img, #chooseList .big .ci.img svg { width: 100%; height: 100%; object-fit: contain; }
@@ -325,6 +326,7 @@ button { font-family: inherit; }
       </div>
       <div class="titleSmall">
         <button class="tool" id="bCollection" type="button">Samlingen</button>
+        <button class="tool" id="bMinis" type="button" hidden>Minispel</button>
         <button class="tool" id="bHelp" type="button">Så spelar man</button>
         <button class="tool" id="bSettings" type="button">Inställningar</button>
       </div>
@@ -3179,7 +3181,7 @@ const Furniture = (() => {
     ['valvet', 'm_dansgolv', 0, -.85], ['valvet', 'm_nisch', -.8, BACK + .02, 0, .9], ['valvet', 'm_lada', .85, -1.2, -12], ['valvet', 'm_spindelvav', .98, BACK + .08, 0, .85], ['valvet', 'm_spindelvav', -.98, BACK + .08, 0, .85], ['valvet', 'i_ljus', -.55, -1.25], ['valvet', 'i_ljus', .45, -1.28], ['valvet', 'm_lykta', 0, -.9, 0, 1.45],
     ['fangelse', 'm_halm', -1.2, -1.15], ['fangelse', 'm_halm', .6, -1.3, 40], ['fangelse', 'm_potatis', -.75, -1.3, -15], ['fangelse', 'm_spindelvav', 1.5, BACK + .08, 0, .8], ['fangelse', 'i_ljus', -1.5, -.72], ['fangelse', 'm_kedjor', .35, BACK + .02, 0, .95], ['fangelse', 'm_ratthal', 1.9, BACK + .02, 0, 0], ['fangelse', 'm_galler', -.4, BACK + .02, 0, 1.25], ['fangelse', 'm_lykta', .9, -.9, 0, 1.45],
     ['vinden', 'm_kista', -1.35, -1.15, 5], ['vinden', 'm_kladkorg', -.3, -1.2], ['vinden', 'm_gungstol', .75, -1.1, -20], ['vinden', 'm_tavlor', 1.6, -1.3, -10], ['vinden', 'm_lykta', 0, -.8, 0, 2.4],
-    ['lonnrum', 'm_alkemi', .15, -1.2], ['lonnrum', 'm_karta', 1.05, BACK + .02, 0, 1.0], ['lonnrum', 'm_skrin', 1.85, -1.05, -15], ['lonnrum', 'm_lykta', .6, -.8, 0, 2.3],
+    ['lonnrum', 'm_alkemi', .15, -1.2], ['lonnrum', 'm_gungstol', -1.1, -1.15, 20], ['lonnrum', 'm_portratt', -.45, BACK + .02, 0, 1.0], ['lonnrum', 'i_ljus', -.72, -1.36], ['lonnrum', 'i_ljus', .62, -1.38], ['lonnrum', 'm_kladkorg', -1.55, -1.25, -10], ['lonnrum', 'm_karta', 1.05, BACK + .02, 0, 1.0], ['lonnrum', 'm_skrin', 1.85, -1.05, -15], ['lonnrum', 'm_lykta', .6, -.8, 0, 2.3],
     ['grevkammare', 'm_tron', 0, -1.25], ['grevkammare', 'm_ljuskrona', 0, -.8, 0, 'ceil'],
     ['tornet', 'm_raketlucka', 0, -1.68, 0, .7], ['tornet', 'm_lykta', .5, -.8, 0, 1.5]
   ];
@@ -4834,6 +4836,7 @@ const UI = (() => {
     if (window.__choose) { const v = window.__choose(title, options); if (v !== undefined) { setTimeout(() => res(v), 10); return; } }
     $('chooseTitle').textContent = title;
     const list = $('chooseList'); list.innerHTML = '';
+    list.classList.toggle('grid', options.length > 5);
     options.forEach(o => list.appendChild(h('button', {class: 'big', type: 'button', onclick: () => chooseDone(o.value)}, o.img ? h('span', {class: 'ci img', html: o.img}) : h('span', {class: 'ci', text: o.icon || '•'}), o.label)));
     $('choose').hidden = false;
     Sound.speak(title + ' ' + options.map(o => o.label).join('? ') + '?', 'narrator');
@@ -4915,6 +4918,15 @@ const Menus = (() => {
     $('bSettings').onclick = () => { back = 'title'; M.settings(); };
     $('bCollection').onclick = () => { back = 'title'; M.collection(); };
     $('bHelp').onclick = () => { back = 'title'; show('help'); };
+    $('bMinis').onclick = async () => {
+      Sound.unlock && Sound.unlock();
+      const MINIS = [['pong', 'Pingis mot spökena', '\ud83c\udfd3', {target: 5}], ['bake', 'Baka ostkaka', '\ud83e\uddc0', {}], ['assemble', 'Bygg ihop Sprak', '\ud83e\udd16', {}],
+        ['menuett', 'Menuetten', '\ud83c\udfb5', {rounds: 3}], ['chase', 'Biljakten', '\ud83d\udef5', {hits: 3}], ['lock', 'Bildlåset', '\ud83d\udd12', {code: [0, 1, 2], showHint: true}],
+        ['satellite', 'Parabolen', '\ud83d\udce1', {}], ['ornaments', 'Pynta granen', '\ud83c\udf84', {count: 5, star: true}], ['rocket', 'Raketen', '\ud83d\ude80', {}]];
+      const v = await UI.choose('Vilket minispel vill ni spela?', MINIS.map(([id, label, icon]) => ({label, icon, value: id})));
+      const m = MINIS.find(x => x[0] === v);
+      if (m) { $('title').hidden = true; await Mini.run(m[0], Object.assign({who: 'ivar'}, m[3])); M.title(); }
+    };
     $('pickBack').onclick = () => M.title();
     $('togBack').onclick = () => { Net.leave(); M.title(); };
     $('pResume').onclick = () => M.resume();
@@ -4932,6 +4944,7 @@ const Menus = (() => {
     show('title');
     const s = Story.load();
     $('bContinue').hidden = !s;
+    $('bMinis').hidden = !Store.get('klar', false);
     $('bNew').textContent = s ? 'Nytt äventyr' : 'Börja äventyret';
     Castle.facadeClose();
     S3.setNight(.55); Castle.setSky(1); ModelLib.setNight(.55);
@@ -5220,6 +5233,7 @@ const D = (() => {
   const wrap = (name, fn) => (...a) => { if (typeof Net !== 'undefined' && Net.role === 'host') Net.d(name, a); const r = fn(...a); return r && typeof r.then === 'function' ? alive(r) : r; };
   const actor = who => (who && who !== 'narrator' && CHARS[who] ? Actors.get(who) : null);
   // Prat: pratbubbla över figuren (eller berättarrutan) och uppläsning. Klick eller mellanslag går vidare.
+  let nextLocal = false;
   const sayImpl = (who, text, opts = {}) => new Promise(res => {
     const a = actor(who), vis = a && a.visible, id = {};
     if (vis && PLAYERS.includes(who) && !a.walking && Math.abs(a.face) > 1.2) a.targetFace = a.face > 0 ? .5 : -.5;
@@ -5230,12 +5244,13 @@ const D = (() => {
     // en ny replik kan redan ha tagit över bubblan (t.ex. på gästens dator): då rör vi den inte
     const fin = () => { if (done) return; done = true; gate.stop(); quiet(); if (next === adv) { next = null; UI.bubble(null); if (typeof Net !== 'undefined' && Net.role === 'host') Net.d('sayEnd', []); } res(); };
     const gate = UI.gate((700 + String(text).length * 62) * Time.scale, () => { Sound.stopSpeech(); fin(); });
-    const adv = (from, force) => gate.hit(from, force);
-    next = adv;
+    const adv = (from, force) => gate.hit(from, force || !!opts.local);
+    next = adv; nextLocal = !!opts.local;
     Sound.sayP(text, CHARS[who] ? who : 'narrator').then(() => { quiet(); setTimeout(fin, (opts.hold ?? 450) * Time.scale); });
   });
   R.say = wrap('say', sayImpl);
-  R.sayLocal = (who, text, opts) => alive(sayImpl(who, text, opts));
+  R.sayLocal = (who, text, opts = {}) => alive(sayImpl(who, text, Object.assign({}, opts, {local: true})));
+  R.isLocal = () => !!next && nextLocal;
   R.next = (from = 'host') => { if (next) next(from); };
   // värdens replik är slut: gästen tar också bort sin (gästen klickar inte bort repliker själv)
   R.sayEnd = () => { if (next) next('host', true); };
@@ -5432,7 +5447,7 @@ const Game = (() => {
       return G.walkTo(hit.room, hit.point.x, hit.point.z);
     }
   };
-  G.advance = () => { if (role === 'guest') { UI.klar(me); Net.next(); } else D.next('host'); };
+  G.advance = () => { if (role === 'guest' && !D.isLocal()) { UI.klar(me); Net.next(); } else D.next('host'); };
   G.walkTo = async (room, x, z) => {
     if (mapMode) G.map(false);
     const a = Actors.get(me);
@@ -7058,7 +7073,7 @@ Content.add(() => {
   }
 
   /* ---------- Bysten med den blanka näsan och kistan ---------- */
-  Things.def('byst', {room: 'galleriet', furniture: 'm_byst', name: 'Marmorbysten', sparkle: S => S.goals.tjuvar && !Story.has('kistnyckel') && !S.goals.kistnyckel,
+  Things.def('byst', {room: 'galleriet', furniture: 'm_byst', name: 'Marmorbysten', at: {x: .45, z: -.82}, sparkle: S => S.goals.tjuvar && !Story.has('kistnyckel') && !S.goals.kistnyckel,
     use: async ({who}) => {
       const S = S0();
       if (S.chapter < 3) { D.sfx('sneeze'); return D.say(who, pick(['Atjoo! Nös bysten?!', 'En marmorbyst av Greven. Näsan är alldeles blank.'])); }
@@ -7533,7 +7548,7 @@ Content.add(() => {
     await D.anim(who, 'reach');
     D.mood('menuett');
     await D.say(who, 'Menuetten spelar! Snabbt, göm er under sängen!');
-    D.place('ivar', 'sovrum', .05, -.62, Math.PI); D.place('lillan', 'sovrum', .35, -.62, Math.PI);
+    D.place('ivar', 'sovrum', .02, -.6, .2); D.place('lillan', 'sovrum', .38, -.6, -.2);
     D.pose('ivar', 'hide'); D.pose('lillan', 'hide');
     D.script('greven', true);
     D.place('greven', 'bibliotek', .6, -.7, Math.PI / 2);
@@ -7666,6 +7681,7 @@ Content.add(() => {
       Story.set('sprakFri');
       D.script('sprak', true); D.pose('sprak', null);
       D.sfx('robot');
+      await D.walk('sprak', 'grevkammare', .82, -.72, -.5);
       await D.say('sprak', 'BIP! Tack! Sprak är fri! Sprak är glad!');
       await D.say('sprak', 'Dioda är i tornkammaren. Hon är så törstig. Två hundra år utan julmust!');
       if (Story.has('nyckeln')) Story.take('nyckeln');
@@ -7825,6 +7841,7 @@ Content.add(() => {
     m.renderOrder = 7; S3.root().add(m);
     Anim.tween(6500 * Math.max(.2, Time.scale), t => { m.position.set(-9 + t * 18, 7.4 + Math.sin(t * Math.PI) * 1.2, -3); if (Math.random() < .5) Fx.burst(m.position.clone().add(new THREE.Vector3(-1.2, -.1, 0)), {n: 2, color: [0xfff2c8, 0xffd75a], spread: .2, up: .1, size: .12, ms: 900}); }).then(() => S3.root().remove(m));
   });
+  D.reg('klarSpelat', () => Store.set('klar', true));
   D.reg('tvKlar', () => Furniture.tvClear && Furniture.tvClear(true));
   D.reg('tvLaxen', on => { Furniture.tvFace(on ? Icons.face('nisse', 'head') : null); if (on) Sound.play('sprak'); });
 
@@ -7888,6 +7905,7 @@ Content.add(() => {
     const f = S0().found;
     await D.card('Kan ni hitta allt?', `Ni har hittat ${(f.pepparkaka || []).length} av 24 pepparkaksgubbar, ${(f.portratt || []).length} av 12 porträtt och ${(f.kuriosa || []).length} av ${KURIOSA.length} konstiga saker. Slottet finns kvar att utforska!`, {kicker: 'Fortsätt leta', art: ['pepparkaka']});
     place.forEach(([w]) => D.script(w, false));
+    D.call('klarSpelat');
     D.hide('nisse'); ['nisse', 'jean', 'staffan'].forEach(w => D.script(w, false));
     Story.done('julafton');
     D.call('tornTillbaka');
